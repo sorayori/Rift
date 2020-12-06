@@ -10,6 +10,8 @@
 
 `FMemory::Free (FnFree)` - `0x2084780`
 
+`FName::ToString (GetNameByIndex)` - `0x215F700`
+
 `GetObjectName` - `0x312EF50`
 
 `ProcessEvent` - `0x22F2990`
