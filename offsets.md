@@ -15,3 +15,5 @@
 `GetObjectName` - `0x312EF50`
 
 `ProcessEvent` - `0x22F2990`
+
+`UWorld::GetFirstPlayerController` - `0x34CE850`
