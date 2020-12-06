@@ -2,4 +2,6 @@
 
 `GEngine` - `0x65A40A0`
 
+`GWorld` - `0x65A5CF0`
+
 `StaticConstructObject_Internal` - `0x22FA300`
