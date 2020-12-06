@@ -9,3 +9,5 @@
 `UObjectArray` - `0x64A0090`
 
 `FMemory::Free (FnFree)` - `0x2084780`
+
+`ProcessEvent` - `0x22F2990`
