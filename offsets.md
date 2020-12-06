@@ -10,4 +10,6 @@
 
 `FMemory::Free (FnFree)` - `0x2084780`
 
+`GetObjectName` - `0x312EF50`
+
 `ProcessEvent` - `0x22F2990`
