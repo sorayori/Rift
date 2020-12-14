@@ -34,8 +34,20 @@ namespace core
 		// -------------
 		// Cheat Manager
 
+		/*
+		auto GameState = ReadPointer(*GWorld, 0x120);
+		if (GameState)
+		{
+			std::cout << "game state exists" << std::endl;
 
+			auto playlist = GlobalObjects->FindObjectByFullName("FortPlaylistAthena /Game/Athena/Playlists/Respawn/Playlist_Respawn_20_Lava.Playlist_Respawn_20_Lava");
 
+			AFortGameStateAthena* MyGameState = reinterpret_cast<AFortGameStateAthena*>(GameState);
+			MyGameState->CurrentPlaylistInfo.BasePlaylist = playlist;
+
+			std::cout << "set playlist" << std::endl;
+		}
+		*/
 
 		// -------------
 		// Summon
@@ -86,8 +98,6 @@ namespace core
 		// Possess
 
 
-
-
 		// ServerReadyToStartMatch
 		// -------------
 		auto ServerReadyToStartMatch_offset = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortPlayerController.ServerReadyToStartMatch");
@@ -121,7 +131,6 @@ namespace core
 		// StartMatch
 
 		std::cout << "Done!" << std::endl;
-
 
 		// -------------
 		// Extras
@@ -162,15 +171,14 @@ namespace core
 		// -------------
 		// Extras
 
-
-		auto state = ReadPointer(controller, 0x220);
-
-		if (state)
+		// Character
+		auto PlayerState = ReadPointer(controller, 0x220);
+		if (PlayerState)
 		{
 			auto head = GlobalObjects->FindObjectByFullName("CustomCharacterPart /Game/Characters/CharacterParts/Male/Medium/Heads/CP_Athena_Head_M_AshtonMilo.CP_Athena_Head_M_AshtonMilo");
 			auto body = GlobalObjects->FindObjectByFullName("CustomCharacterPart /Game/Athena/Heroes/Meshes/Bodies/CP_Athena_Body_M_AshtonMilo.CP_Athena_Body_M_AshtonMilo");
 
-			AFortPlayerState* MyFortPlayerState = reinterpret_cast<AFortPlayerState*>(state);
+			AFortPlayerState* MyFortPlayerState = reinterpret_cast<AFortPlayerState*>(PlayerState);
 
 			MyFortPlayerState->CharacterData.Parts[0] = head;
 			MyFortPlayerState->CharacterData.Parts[1] = body;
@@ -179,8 +187,25 @@ namespace core
 
 			if (CharacterData_offset)
 			{
-				UE4::ProcessEvent(state, CharacterData_offset, nullptr, 0);
+				UE4::ProcessEvent(PlayerState, CharacterData_offset, nullptr, 0);
 			}
+		}
+
+		auto obj = GlobalObjects->FindObjectByFullName("BP_NightNight_Scripting_C /Game/Athena/Maps/Athena_POI_Foundations.Athena_POI_Foundations.PersistentLevel.BP_NightNight_Scripting_2");
+		auto func = GlobalObjects->FindObjectByFullName("Function /Game/Athena/Prototype/Blueprints/NightNight/BP_NightNight_Scripting.BP_NightNight_Scripting_C.LoadNightNightLevel");
+
+		if (obj && func)
+		{
+			// Start NightNight
+			struct
+			{
+				bool Condition;
+			} params;
+			params.Condition = true;
+			UE4::ProcessEvent(obj, func, &params, 0);
+
+			// Play Level Sequence
+			UE4::ProcessEvent(GlobalObjects->FindObjectByFullName("LevelSequencePlayer /Game/Athena/Maps/Test/S10/NightNightSequenceMap.NightNightSequenceMap.PersistentLevel.NightNight.AnimationPlayer"), GlobalObjects->FindObjectByFullName("Function /Script/MovieScene.MovieSceneSequencePlayer.Play"), nullptr, 0);
 		}
 	};
 

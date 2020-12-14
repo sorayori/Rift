@@ -109,6 +109,19 @@ struct FCustomCharacterData
     unsigned char                                      UnknownData01[0x7];                                       // 0x0069(0x0007) MISSED OFFSET
 };
 
+struct FPlaylistPropertyArray
+{
+    unsigned char UnknownData00[0x120];
+    void* BasePlaylist;
+};
+
+class AFortGameStateAthena
+{
+public:
+    unsigned char UnknownData00[0x1BC0];
+    FPlaylistPropertyArray CurrentPlaylistInfo;
+};
+
 class AFortPlayerState
 {
 public:
