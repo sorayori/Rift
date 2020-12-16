@@ -393,7 +393,7 @@ public:
 
     inline void Test()
     {
-        std::ofstream MyFile("ObjectDump.txt");
+        std::ofstream MyFile("LoadedCattus.txt");
 
         for (int i = 0; i < this->Num(); ++i)
         {
@@ -402,6 +402,7 @@ public:
             {
                 continue;
             }
+
             std::string objectName = object->GetFullName();
             MyFile << objectName << std::endl;
         }

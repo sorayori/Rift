@@ -18,6 +18,7 @@ namespace core
 
 	static DWORD WINAPI Inputs(LPVOID lpParam)
 	{
+		/*
 		auto Jump_Object = GlobalObjects->FindObjectByFullName("Function /Script/Engine.Character.Jump");
 
 		while (1)
@@ -29,9 +30,11 @@ namespace core
 
 			Sleep(1000 / 60);
 		}
+		*/
 
 		return 0;
 	}
+	
 
 	static void LoadAthena()
 	{
@@ -194,6 +197,7 @@ namespace core
 			}
 		}
 
+		/*
 		// Hide HUD for event
 		auto hud = ReadPointer(Controller, 0x2A8);
 		UE4::ProcessEvent(hud, GlobalObjects->FindObjectByFullName("Function /Script/Engine.HUD.ShowHUD"), nullptr, 0);
@@ -213,6 +217,24 @@ namespace core
 			// Play Level Sequence
 			UE4::ProcessEvent(GlobalObjects->FindObjectByFullName("LevelSequencePlayer /Game/Athena/Maps/Test/S10/NightNightSequenceMap.NightNightSequenceMap.PersistentLevel.NightNight.AnimationPlayer"), GlobalObjects->FindObjectByFullName("Function /Script/MovieScene.MovieSceneSequencePlayer.Play"), nullptr, 0);
 		}
+		*/
+
+		auto obj = GlobalObjects->FindObjectByFullName("BP_CattusDoggus_Scripting_C /Game/Athena/Maps/Athena_POI_Foundations.Athena_POI_Foundations.PersistentLevel.BP_CattusDoggus_Scripting_2");
+		auto func1 = GlobalObjects->FindObjectByFullName("Function /Game/Athena/Prototype/Blueprints/Cattus/BP_CattusDoggus_Scripting.BP_CattusDoggus_Scripting_C.LoadCattusLevel");
+		auto func2 = GlobalObjects->FindObjectByFullName("Function /Game/Athena/Prototype/Blueprints/Cattus/BP_CattusDoggus_Scripting.BP_CattusDoggus_Scripting_C.startevent");
+		struct
+		{
+			bool Condition;
+		} FirstParams;
+		FirstParams.Condition = true;
+
+		UE4::ProcessEvent(obj, func1, &FirstParams, 0);
+		GlobalObjects->Test();
+		UE4::ProcessEvent(obj, func2, nullptr, 0);
+
+		// GlobalObjects->Test();
+
+		std::cout << "Done!" << std::endl;
 	};
 
 	static void Setup()
