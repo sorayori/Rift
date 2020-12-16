@@ -129,6 +129,13 @@ public:
     FCustomCharacterData CharacterData;
 };
 
+class TestPawn
+{
+public:
+    unsigned char UnknownData00[0x6B0];
+    uint8_t CurrentMovementStyle;
+};
+
 struct FRotator
 {
     float Pitch;

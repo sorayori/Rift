@@ -13,16 +13,36 @@ namespace core
 	GObjects* GlobalObjects;
 	static void** GWorld;
 
+	void* Controller;
+	void* Pawn;
+
+	static DWORD WINAPI Inputs(LPVOID lpParam)
+	{
+		auto Jump_Object = GlobalObjects->FindObjectByFullName("Function /Script/Engine.Character.Jump");
+
+		while (1)
+		{
+			if (GetKeyState(VK_SPACE) & 0x8000)
+			{
+				UE4::ProcessEvent(Pawn, Jump_Object, nullptr, 0);
+			}
+
+			Sleep(1000 / 60);
+		}
+
+		return 0;
+	}
+
 	static void LoadAthena()
 	{
-		void* controller = UE4::GetFirstPlayerController(*GWorld);
+		Controller = UE4::GetFirstPlayerController(*GWorld);
 
 		// -------------
 		// Cheat Manager
 		void* cheatManager = UE4::StaticConstructObject_Internal
 		(
 			GlobalObjects->FindObjectByFullName("Class /Script/Engine.CheatManager")
-			, controller
+			, Controller
 			, nullptr
 			, 0
 			, 0
@@ -33,21 +53,6 @@ namespace core
 		);
 		// -------------
 		// Cheat Manager
-
-		/*
-		auto GameState = ReadPointer(*GWorld, 0x120);
-		if (GameState)
-		{
-			std::cout << "game state exists" << std::endl;
-
-			auto playlist = GlobalObjects->FindObjectByFullName("FortPlaylistAthena /Game/Athena/Playlists/Respawn/Playlist_Respawn_20_Lava.Playlist_Respawn_20_Lava");
-
-			AFortGameStateAthena* MyGameState = reinterpret_cast<AFortGameStateAthena*>(GameState);
-			MyGameState->CurrentPlaylistInfo.BasePlaylist = playlist;
-
-			std::cout << "set playlist" << std::endl;
-		}
-		*/
 
 		// -------------
 		// Summon
@@ -70,9 +75,7 @@ namespace core
 		// Summon
 
 
-		auto pawn = GlobalObjects->FindObject("PlayerPawn_Athena_C_");
-
-
+		Pawn = GlobalObjects->FindObject("PlayerPawn_Athena_C_");
 
 		// Possess
 		// -------------
@@ -80,16 +83,16 @@ namespace core
 
 		if (Possess_offset)
 		{
-			if (pawn)
+			if (Pawn)
 			{
 				struct
 				{
 					void* InPawn;
 				} PossessParams;
 
-				PossessParams.InPawn = pawn;
+				PossessParams.InPawn = Pawn;
 
-				UE4::ProcessEvent(controller, Possess_offset, &PossessParams, 0);
+				UE4::ProcessEvent(Controller, Possess_offset, &PossessParams, 0);
 
 				std::cout << "Possessed!" << std::endl;
 			}
@@ -104,7 +107,7 @@ namespace core
 
 		if (ServerReadyToStartMatch_offset)
 		{
-			UE4::ProcessEvent(controller, ServerReadyToStartMatch_offset, nullptr, 0);
+			UE4::ProcessEvent(Controller, ServerReadyToStartMatch_offset, nullptr, 0);
 
 			std::cout << "Controller is ready to start match!" << std::endl;
 		}
@@ -147,7 +150,7 @@ namespace core
 			TeleportParams.DestLocation = FVector{ 4024.503662, -631.651001, 3533.149902 }; // Salty Springs
 			TeleportParams.DestRotation = FRotator{ 1,1,1 };
 
-			UE4::ProcessEvent(pawn, K2_TeleportTo_offset, &TeleportParams, 0);
+			UE4::ProcessEvent(Pawn, K2_TeleportTo_offset, &TeleportParams, 0);
 
 			std::cout << "Teleported to Salty Springs!" << std::endl;
 		}
@@ -172,7 +175,7 @@ namespace core
 		// Extras
 
 		// Character
-		auto PlayerState = ReadPointer(controller, 0x220);
+		auto PlayerState = ReadPointer(Controller, 0x220);
 		if (PlayerState)
 		{
 			auto head = GlobalObjects->FindObjectByFullName("CustomCharacterPart /Game/Characters/CharacterParts/Male/Medium/Heads/CP_Athena_Head_M_AshtonMilo.CP_Athena_Head_M_AshtonMilo");
@@ -191,12 +194,15 @@ namespace core
 			}
 		}
 
+		// Hide HUD for event
+		auto hud = ReadPointer(Controller, 0x2A8);
+		UE4::ProcessEvent(hud, GlobalObjects->FindObjectByFullName("Function /Script/Engine.HUD.ShowHUD"), nullptr, 0);
+
+		// Start NightNight
 		auto obj = GlobalObjects->FindObjectByFullName("BP_NightNight_Scripting_C /Game/Athena/Maps/Athena_POI_Foundations.Athena_POI_Foundations.PersistentLevel.BP_NightNight_Scripting_2");
 		auto func = GlobalObjects->FindObjectByFullName("Function /Game/Athena/Prototype/Blueprints/NightNight/BP_NightNight_Scripting.BP_NightNight_Scripting_C.LoadNightNightLevel");
-
 		if (obj && func)
 		{
-			// Start NightNight
 			struct
 			{
 				bool Condition;

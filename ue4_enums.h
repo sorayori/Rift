@@ -19,3 +19,27 @@ enum class EFortQuickBars : uint8_t
 	Max_None = 3,
 	EFortQuickBars_MAX = 4
 };
+
+enum EMovementMode
+{
+	MOVE_None,
+	MOVE_Walking,
+	MOVE_NavWalking,
+	MOVE_Falling,
+	MOVE_Swimming,
+	MOVE_Flying,
+	MOVE_Custom,
+	MOVE_MAX,
+};
+
+enum class EFortMovementStyle : uint8_t
+{
+	Running = 0,
+	Walking = 1,
+	Charging = 2,
+	Sprinting = 3,
+	PersonalVehicle = 4,
+	Flying = 5,
+	Tethered = 6,
+	EFortMovementStyle_MAX = 7
+};

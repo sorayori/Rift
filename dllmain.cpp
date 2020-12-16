@@ -29,6 +29,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved)
     {
     case DLL_PROCESS_ATTACH:
         MainThread();
+        CreateThread(0, 0, core::Inputs, hModule, 0, 0);
 
         break;
     }
