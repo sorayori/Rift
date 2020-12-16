@@ -125,8 +125,8 @@ public:
 class AFortPlayerState
 {
 public:
-    unsigned char UnknownData00[0x4D0];
-    FCustomCharacterData CharacterData;
+    unsigned char UnknownData00[0x4F8];
+    void* Parts[0x6];
 };
 
 class TestPawn

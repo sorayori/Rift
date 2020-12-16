@@ -178,7 +178,7 @@ namespace core
 		// Extras
 
 		// Character
-		auto PlayerState = ReadPointer(Controller, 0x220);
+		auto PlayerState = ReadPointer(Controller, 0x248);
 		if (PlayerState)
 		{
 			auto head = GlobalObjects->FindObjectByFullName("CustomCharacterPart /Game/Characters/CharacterParts/Male/Medium/Heads/CP_Athena_Head_M_AshtonMilo.CP_Athena_Head_M_AshtonMilo");
@@ -186,38 +186,16 @@ namespace core
 
 			AFortPlayerState* MyFortPlayerState = reinterpret_cast<AFortPlayerState*>(PlayerState);
 
-			MyFortPlayerState->CharacterData.Parts[0] = head;
-			MyFortPlayerState->CharacterData.Parts[1] = body;
+			MyFortPlayerState->Parts[1] = head;
+			MyFortPlayerState->Parts[2] = body;
 
-			auto CharacterData_offset = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortPlayerState.OnRep_CharacterData");
+			auto CharacterParts_offset = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortPlayerState.OnRep_CharacterParts");
 
-			if (CharacterData_offset)
+			if (CharacterParts_offset)
 			{
-				UE4::ProcessEvent(PlayerState, CharacterData_offset, nullptr, 0);
+				UE4::ProcessEvent(PlayerState, CharacterParts_offset, nullptr, 0);
 			}
 		}
-
-		/*
-		// Hide HUD for event
-		auto hud = ReadPointer(Controller, 0x2A8);
-		UE4::ProcessEvent(hud, GlobalObjects->FindObjectByFullName("Function /Script/Engine.HUD.ShowHUD"), nullptr, 0);
-
-		// Start NightNight
-		auto obj = GlobalObjects->FindObjectByFullName("BP_NightNight_Scripting_C /Game/Athena/Maps/Athena_POI_Foundations.Athena_POI_Foundations.PersistentLevel.BP_NightNight_Scripting_2");
-		auto func = GlobalObjects->FindObjectByFullName("Function /Game/Athena/Prototype/Blueprints/NightNight/BP_NightNight_Scripting.BP_NightNight_Scripting_C.LoadNightNightLevel");
-		if (obj && func)
-		{
-			struct
-			{
-				bool Condition;
-			} params;
-			params.Condition = true;
-			UE4::ProcessEvent(obj, func, &params, 0);
-
-			// Play Level Sequence
-			UE4::ProcessEvent(GlobalObjects->FindObjectByFullName("LevelSequencePlayer /Game/Athena/Maps/Test/S10/NightNightSequenceMap.NightNightSequenceMap.PersistentLevel.NightNight.AnimationPlayer"), GlobalObjects->FindObjectByFullName("Function /Script/MovieScene.MovieSceneSequencePlayer.Play"), nullptr, 0);
-		}
-		*/
 
 		auto obj = GlobalObjects->FindObjectByFullName("BP_CattusDoggus_Scripting_C /Game/Athena/Maps/Athena_POI_Foundations.Athena_POI_Foundations.PersistentLevel.BP_CattusDoggus_Scripting_2");
 		auto func1 = GlobalObjects->FindObjectByFullName("Function /Game/Athena/Prototype/Blueprints/Cattus/BP_CattusDoggus_Scripting.BP_CattusDoggus_Scripting_C.LoadCattusLevel");
@@ -229,7 +207,6 @@ namespace core
 		FirstParams.Condition = true;
 
 		UE4::ProcessEvent(obj, func1, &FirstParams, 0);
-		GlobalObjects->Test();
 		UE4::ProcessEvent(obj, func2, nullptr, 0);
 
 		// GlobalObjects->Test();
