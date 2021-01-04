@@ -18,9 +18,6 @@
     <ClInclude Include="memory.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="offsets.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="util.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -33,7 +30,46 @@
     <ClInclude Include="FortUpdater\FortUpdater.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MinHook\MinHook.h">
+    <ClInclude Include="skCrypter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="offsets.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="JSON\json.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="curl\curl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="curl\curlver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="curl\easy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="curl\mprintf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="curl\multi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="curl\options.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="curl\stdcheaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="curl\system.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="curl\typecheck-gcc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="curl\urlapi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="api.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -46,7 +82,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Library Include="MinHook\libMinHook.x64.lib" />
+    <Library Include="curl\libcurl_a.lib" />
+    <Library Include="curl\libcurl_a_debug.lib" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -3,6 +3,8 @@
 #include "offsets.h"
 #include "ue4.h"
 #include "detours.h"
+#include "skCrypter.h"
+#include "api.h"
 
 namespace Core
 {
@@ -33,12 +35,14 @@ namespace Core
 		DWORD PlayerNameOffset;
 		DWORD CurrentWeaponOffset;
 		DWORD bIsTargetingOffset;
+		DWORD WeaponDefinitionOffset;
 
 		UE4::UObject* CheatManagerClass;
 
 		UE4::UObject* Default__FortKismetLibrary;
 		UE4::UObject* Default__FortItemAndVariantSwapHelpers;
 
+		UE4::UObject* ServerPlayEmoteItemFunc;
 		UE4::UObject* SetTimeOfDayManagerGameplayOverrideFunc;
 		UE4::UObject* BugItGoFunc;
 		UE4::UObject* GetActorLocationFunc;
@@ -79,7 +83,12 @@ namespace Core
 	class RiftAutomationUtils
 	{
 	public:
-		static void Summon(UE4::UObject* InCheatManager, UE4::FString ClassToSummon) { UE4::ProcessEvent(InCheatManager, Offsets::SummonFunc, &ClassToSummon, 0); }
+		static void Summon(UE4::UObject* InCheatManager, const char* ClassToSummon) 
+		{
+			std::string StrClassToSummon(ClassToSummon);
+			UE4::FString FStrClassToSummon = UE4::FString(std::wstring(StrClassToSummon.begin(), StrClassToSummon.end()).c_str());
+			UE4::ProcessEvent(InCheatManager, Offsets::SummonFunc, &FStrClassToSummon, 0);
+		}
 
 		static void Possess(UE4::UObject* InController, UE4::UObject* InPawn) { UE4::ProcessEvent(InController, Offsets::PossessFunc, &InPawn, 0); }
 
@@ -87,7 +96,7 @@ namespace Core
 
 		static void StartMatch(UE4::UObject* InGameMode) { UE4::ProcessEvent(InGameMode, Offsets::StartMatchFunc, nullptr, 0); }
 
-		static void DestroyAll(UE4::UObject* InCheatManager, const std::string& ClassToDestroy)
+		static void DestroyAll(UE4::UObject* InCheatManager, const char* ClassToDestroy)
 		{
 			UE4::UObject* LocatedClass = GlobalObjects->FindObject(ClassToDestroy);
 			UE4::ProcessEvent(InCheatManager, Offsets::DestroyAllFunc, &LocatedClass, 0);
@@ -106,12 +115,19 @@ namespace Core
 			UE4::ProcessEvent(Offsets::Default__FortKismetLibrary, Offsets::SetCanBeDamagedFunc, &SetCanBeDamagedParams, 0);
 		}
 
-		static void OverridePawnCosmetic(UE4::UObject* InFortPlayerPawn, const std::string& CosmeticFullName)
+		static void OverridePawnCosmetic(UE4::UObject* InFortPlayerPawn, const char* CosmeticFullName, bool bCaseInsensitive = false)
 		{
-			auto Cosmetic = GlobalObjects->FindObjectByFullName(CosmeticFullName);
+			UE4::UObject* Cosmetic;
+
+			if (bCaseInsensitive)
+				Cosmetic = GlobalObjects->FindObjectByFullNameInsensitive(CosmeticFullName);
+			else
+				Cosmetic = GlobalObjects->FindObjectByFullName(CosmeticFullName);
+
 			if (!Cosmetic)
 			{
-				std::cout << "Invalid cosmetic name!" << std::endl;
+				DEBUG_LOG("RIFT: Invalid Cosmetic Name!\n");
+				return;
 			}
 
 			struct
@@ -128,14 +144,15 @@ namespace Core
 
 		// Return value is broke on EquipWeaponDefinition, it's insanely old and as far as I'm aware it was never actually used in-game so I'm not surprised if it's deprecated.
 		// Sometime we should definitely look for an alternative, so called alternative could be our solution to fixed weapon sounds.
-		static void EquipWeapon(UE4::UObject* InPawn, const std::string& WIDFullName)
+		static void EquipWeapon(UE4::UObject* InPawn, const char* WIDFullName)
 		{
 			auto WeaponToEquip = GlobalObjects->FindObjectByFullName(WIDFullName);
 			if (!WeaponToEquip)
 			{
-				std::cout << "Invalid weapon definition!" << std::endl;
+				DEBUG_LOG("RIFT: Invalid weapon definition!\n");
 				return;
 			}
+
 			struct
 			{
 				UE4::UObject* WeaponData;
@@ -143,6 +160,31 @@ namespace Core
 				UE4::UObject* ReturnValue;
 			} EquipWeaponDefinitionParams;
 			EquipWeaponDefinitionParams.WeaponData = WeaponToEquip;
+			UE4::FGuid NewGUID;
+			NewGUID.A = rand() % 1000;
+			NewGUID.B = rand() % 1000;
+			NewGUID.C = rand() % 1000;
+			NewGUID.D = rand() % 1000;
+			EquipWeaponDefinitionParams.ItemEntryGuid = NewGUID;
+
+			UE4::ProcessEvent(InPawn, Offsets::EquipWeaponDefinitionFunc, &EquipWeaponDefinitionParams, 0);
+		}
+
+		static void EquipWeaponFromDefinition(UE4::UObject* InPawn, UE4::UObject* WeaponDef)
+		{
+			if (!WeaponDef)
+			{
+				DEBUG_LOG("RIFT: Invalid weapon definition!\n");
+				return;
+			}
+
+			struct
+			{
+				UE4::UObject* WeaponData;
+				UE4::FGuid ItemEntryGuid;
+				UE4::UObject* ReturnValue;
+			} EquipWeaponDefinitionParams;
+			EquipWeaponDefinitionParams.WeaponData = WeaponDef;
 			UE4::FGuid NewGUID;
 			NewGUID.A = rand() % 1000;
 			NewGUID.B = rand() % 1000;
@@ -186,13 +228,14 @@ namespace Core
 
 		static void JumpToSafeZonePhase(UE4::UObject* InortGameModeAthena) { UE4::ProcessEvent(InortGameModeAthena, Offsets::JumpToSafeZonePhaseFunc, nullptr, 0); }
 
-		static void SetPlaylist(UE4::UObject* InFortGameStateAthena, const std::string& FortPlaylistAthenaFullName, bool ShouldSkipWarmup, bool ShouldSkipAircraft) 
+		static void SetPlaylist(UE4::UObject* InFortGameStateAthena, const char* FortPlaylistAthenaFullName, bool ShouldSkipWarmup, bool ShouldSkipAircraft) 
 		{
 			auto FortPlaylistAthena = GlobalObjects->FindObjectByFullName(FortPlaylistAthenaFullName);
 
 			if (!FortPlaylistAthena)
 			{
-				std::cout << "Invalid playlist name!" << std::endl;
+				DEBUG_LOG("RIFT: Invalid playlist name!\n");
+				return;
 			}
 
 			bool* bSkipWarmup = reinterpret_cast<bool*>(__int64(FortPlaylistAthena) + __int64(Offsets::bSkipWarmupOffset));
@@ -221,10 +264,11 @@ namespace Core
 			return NewCheatManager;
 		}
 
-		static void SwitchLevel(UE4::UObject* InController, UE4::FString InURL)
+		static void SwitchLevel(UE4::UObject* InController, const char* InURL)
 		{
-			UE4::FString URL = InURL;
-			UE4::ProcessEvent(InController, Offsets::SwitchLevelFunc, &URL, 0);
+			std::string StrInURL(InURL);
+			UE4::FString FStrInURL = UE4::FString(std::wstring(StrInURL.begin(), StrInURL.end()).c_str());
+			UE4::ProcessEvent(InController, Offsets::SwitchLevelFunc, &FStrInURL, 0);
 		}
 
 		static void Jump(UE4::UObject* InPawn) { UE4::ProcessEvent(InPawn, Offsets::JumpFunc, nullptr, 0); }
@@ -305,10 +349,27 @@ namespace Core
 			return *reinterpret_cast<UE4::UObject**>(__int64(InFortPawn) + __int64(Offsets::CurrentWeaponOffset));
 		}
 
+		static UE4::UObject* GetWeaponDefinitionFromAPID(UE4::UObject* InAPID) // APID is short for AthenaPickaxeItemDefinition
+		{
+			return *reinterpret_cast<UE4::UObject**>(__int64(InAPID) + __int64(Offsets::WeaponDefinitionOffset));
+		}
+
 		static bool IsTargettingWeapon(UE4::UObject* InFortWeapon)
 		{
 			return *reinterpret_cast<bool*>(__int64(InFortWeapon) + __int64(Offsets::bIsTargetingOffset));
 		}
+
+		static void ServerPlayEmoteItem(UE4::UObject* InController, UE4::UObject* InEmoteAsset, float InEmoteRandomNumber)
+		{
+			struct
+			{
+				UE4::UObject* EmoteAsset;
+				float EmoteRandomNumber;
+			} ServerPlayEmoteItemParams;
+			ServerPlayEmoteItemParams.EmoteAsset = InEmoteAsset;
+			ServerPlayEmoteItemParams.EmoteRandomNumber = InEmoteRandomNumber;
+			UE4::ProcessEvent(InController, Offsets::ServerPlayEmoteItemFunc, &ServerPlayEmoteItemParams, 0);
+		};
 	};
 
 	static void ExecutePatches()
@@ -328,49 +389,51 @@ namespace Core
 
 	static void GetOffsets()
 	{
-		Offsets::CheatManagerOffset = GlobalObjects->FindOffset("PlayerController", "CheatManager");
-		Offsets::CurrentMovementStyleOffset = GlobalObjects->FindOffset("FortPawn", "CurrentMovementStyle");
-		Offsets::CharacterMovementOffset = GlobalObjects->FindOffset("Character", "CharacterMovement");
-		Offsets::bInfiniteAmmoOffset = GlobalObjects->FindOffset("FortPlayerController", "bInfiniteAmmo");
-		Offsets::CurrentPlaylistInfoOffset = GlobalObjects->FindOffset("FortGameStateAthena", "CurrentPlaylistInfo");
-		Offsets::BasePlaylistOffset = GlobalObjects->FindOffset("PlaylistPropertyArray", "BasePlaylist");
-		Offsets::bWantsToSprintOffset = GlobalObjects->FindOffset("FortPlayerController", "bWantsToSprint");
-		Offsets::bSkipWarmupOffset = GlobalObjects->FindOffset("FortPlaylistAthena", "bSkipWarmup");
-		Offsets::bSkipAircraftOffset = GlobalObjects->FindOffset("FortPlaylistAthena", "bSkipAircraft");
-		Offsets::McpProfileGroupOffset = GlobalObjects->FindOffset("FortPlayerController", "McpProfileGroup");
-		Offsets::PlayerNameOffset = GlobalObjects->FindOffset("McpProfileGroup", "PlayerName");
-		Offsets::CurrentWeaponOffset = GlobalObjects->FindOffset("FortPawn", "CurrentWeapon");
-		Offsets::bIsTargetingOffset = GlobalObjects->FindOffset("FortWeapon", "bIsTargeting");
+		Offsets::CheatManagerOffset = GlobalObjects->FindOffset(skCrypt("PlayerController"), skCrypt("CheatManager"));
+		Offsets::CurrentMovementStyleOffset = GlobalObjects->FindOffset(skCrypt("FortPawn"), skCrypt("CurrentMovementStyle"));
+		Offsets::CharacterMovementOffset = GlobalObjects->FindOffset(skCrypt("Character"), skCrypt("CharacterMovement"));
+		Offsets::bInfiniteAmmoOffset = GlobalObjects->FindOffset(skCrypt("FortPlayerController"), skCrypt("bInfiniteAmmo"));
+		Offsets::CurrentPlaylistInfoOffset = GlobalObjects->FindOffset(skCrypt("FortGameStateAthena"), skCrypt("CurrentPlaylistInfo"));
+		Offsets::BasePlaylistOffset = GlobalObjects->FindOffset(skCrypt("PlaylistPropertyArray"), skCrypt("BasePlaylist"));
+		Offsets::bWantsToSprintOffset = GlobalObjects->FindOffset(skCrypt("FortPlayerController"), skCrypt("bWantsToSprint"));
+		Offsets::bSkipWarmupOffset = GlobalObjects->FindOffset(skCrypt("FortPlaylistAthena"), skCrypt("bSkipWarmup"));
+		Offsets::bSkipAircraftOffset = GlobalObjects->FindOffset(skCrypt("FortPlaylistAthena"), skCrypt("bSkipAircraft"));
+		Offsets::McpProfileGroupOffset = GlobalObjects->FindOffset(skCrypt("FortPlayerController"), skCrypt("McpProfileGroup"));
+		Offsets::PlayerNameOffset = GlobalObjects->FindOffset(skCrypt("McpProfileGroup"), skCrypt("PlayerName"));
+		Offsets::CurrentWeaponOffset = GlobalObjects->FindOffset(skCrypt("FortPawn"), skCrypt("CurrentWeapon"));
+		Offsets::bIsTargetingOffset = GlobalObjects->FindOffset(skCrypt("FortWeapon"), skCrypt("bIsTargeting"));
+		Offsets::PawnPlayerStateOffset = GlobalObjects->FindOffset(skCrypt("Controller"), skCrypt("PlayerState"));
+		Offsets::WeaponDefinitionOffset = GlobalObjects->FindOffset("AthenaPickaxeItemDefinition", "WeaponDefinition");
 
-		Offsets::CheatManagerClass = GlobalObjects->FindObjectByFullName("Class /Script/Engine.CheatManager");
+		Offsets::CheatManagerClass = GlobalObjects->FindObjectByFullName(skCrypt("Class /Script/Engine.CheatManager"));
+
+		Offsets::Default__FortKismetLibrary = GlobalObjects->FindObjectByFullName(skCrypt("FortKismetLibrary /Script/FortniteGame.Default__FortKismetLibrary"));
+		Offsets::Default__FortItemAndVariantSwapHelpers = GlobalObjects->FindObjectByFullName(skCrypt("FortItemAndVariantSwapHelpers /Script/FortniteGame.Default__FortItemAndVariantSwapHelpers"));
 		
-		Offsets::Default__FortKismetLibrary = GlobalObjects->FindObjectByFullName("FortKismetLibrary /Script/FortniteGame.Default__FortKismetLibrary");
-		Offsets::Default__FortItemAndVariantSwapHelpers = GlobalObjects->FindObjectByFullName("FortItemAndVariantSwapHelpers /Script/FortniteGame.Default__FortItemAndVariantSwapHelpers");
-		
-		Offsets::SetTimeOfDayManagerGameplayOverrideFunc = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortGameModeAthena.SetTimeOfDayManagerGameplayOverride");
-		Offsets::BugItGoFunc = GlobalObjects->FindObjectByFullName("Function /Script/Engine.CheatManager.BugItGo");
-		Offsets::GetActorLocationFunc = GlobalObjects->FindObjectByFullName("Function /Script/Engine.Actor.K2_GetActorLocation");
-		Offsets::JumpFunc = GlobalObjects->FindObjectByFullName("Function /Script/Engine.Character.Jump");
-		Offsets::JumpToSafeZonePhaseFunc = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortGameModeAthena.JumpToSafeZonePhase");
-		Offsets::OnRep_CurrentPlaylistInfoFunc = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortGameStateAthena.OnRep_CurrentPlaylistInfo");
-		Offsets::PawnPlayerStateOffset = GlobalObjects->FindOffset("Controller", "PlayerState");
-		Offsets::TeleportToSkyDiveFunc = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortPlayerPawnAthena.TeleportToSkyDive");
-		Offsets::EquipWeaponDefinitionFunc = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortPawn.EquipWeaponDefinition");
-		Offsets::PushCosmeticOverrideOntoPawnFunc = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortItemAndVariantSwapHelpers.PushCosmeticOverrideOntoPawn");
-		Offsets::SetCanBeDamagedFunc = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortKismetLibrary.SetCanBeDamaged");
-		Offsets::DestroyAllFunc = GlobalObjects->FindObjectByFullName("Function /Script/Engine.CheatManager.DestroyAll");
-		Offsets::StartMatchFunc = GlobalObjects->FindObjectByFullName("Function /Script/Engine.GameMode.StartMatch");
-		Offsets::ServerReadyToStartMatchFunc = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortPlayerController.ServerReadyToStartMatch");
-		Offsets::PossessFunc = GlobalObjects->FindObjectByFullName("Function /Script/Engine.Controller.Possess");
-		Offsets::PlayButtonFunc = GlobalObjects->FindObjectByFullName("Function /Game/Athena/UI/Matchmaking/AthenaLobbyMatchmakingPlay.AthenaLobbyMatchmakingPlay_C.BndEvt__PlayButton_K2Node_ComponentBoundEvent_0_CommonButtonClicked__DelegateSignature");
-		Offsets::ReadyToStartMatchFunc = GlobalObjects->FindObjectByFullName("Function /Script/Engine.GameMode.ReadyToStartMatch");
-		Offsets::SummonFunc = GlobalObjects->FindObjectByFullName("Function /Script/Engine.CheatManager.Summon");
-		Offsets::SwitchLevelFunc = GlobalObjects->FindObjectByFullName("Function /Script/Engine.PlayerController.SwitchLevel");
-		Offsets::IsSkydivingFunc = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortPlayerPawn.IsSkydiving");
-		Offsets::IsParachuteOpenFunc = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortPlayerPawn.IsParachuteOpen");
-		Offsets::IsParachuteForcedOpenFunc = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortPlayerPawn.IsParachuteForcedOpen");
-		Offsets::SetMovementModeFunc = GlobalObjects->FindObjectByFullName("Function /Script/Engine.CharacterMovementComponent.SetMovementMode");
-		Offsets::OnRep_IsParachuteOpenFunc = GlobalObjects->FindObjectByFullName("Function /Script/FortniteGame.FortPlayerPawn.OnRep_IsParachuteOpen");
+		Offsets::ServerPlayEmoteItemFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortPlayerController.ServerPlayEmoteItem"));
+		Offsets::SetTimeOfDayManagerGameplayOverrideFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortGameModeAthena.SetTimeOfDayManagerGameplayOverride"));
+		Offsets::BugItGoFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.CheatManager.BugItGo"));
+		Offsets::GetActorLocationFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.Actor.K2_GetActorLocation"));
+		Offsets::JumpFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.Character.Jump"));
+		Offsets::JumpToSafeZonePhaseFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortGameModeAthena.JumpToSafeZonePhase"));
+		Offsets::OnRep_CurrentPlaylistInfoFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortGameStateAthena.OnRep_CurrentPlaylistInfo"));
+		Offsets::TeleportToSkyDiveFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortPlayerPawnAthena.TeleportToSkyDive"));
+		Offsets::EquipWeaponDefinitionFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortPawn.EquipWeaponDefinition"));
+		Offsets::PushCosmeticOverrideOntoPawnFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortItemAndVariantSwapHelpers.PushCosmeticOverrideOntoPawn"));
+		Offsets::SetCanBeDamagedFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortKismetLibrary.SetCanBeDamaged"));
+		Offsets::DestroyAllFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.CheatManager.DestroyAll"));
+		Offsets::StartMatchFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.GameMode.StartMatch"));
+		Offsets::ServerReadyToStartMatchFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortPlayerController.ServerReadyToStartMatch"));
+		Offsets::PossessFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.Controller.Possess"));
+		Offsets::PlayButtonFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Game/Athena/UI/Matchmaking/AthenaLobbyMatchmakingPlay.AthenaLobbyMatchmakingPlay_C.BndEvt__PlayButton_K2Node_ComponentBoundEvent_0_CommonButtonClicked__DelegateSignature"));
+		Offsets::ReadyToStartMatchFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.GameMode.ReadyToStartMatch"));
+		Offsets::SummonFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.CheatManager.Summon"));
+		Offsets::SwitchLevelFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.PlayerController.SwitchLevel"));
+		Offsets::IsSkydivingFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortPlayerPawn.IsSkydiving"));
+		Offsets::IsParachuteOpenFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortPlayerPawn.IsParachuteOpen"));
+		Offsets::IsParachuteForcedOpenFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortPlayerPawn.IsParachuteForcedOpen"));
+		Offsets::SetMovementModeFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.CharacterMovementComponent.SetMovementMode"));
+		Offsets::OnRep_IsParachuteOpenFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortPlayerPawn.OnRep_IsParachuteOpen"));
 	}
 
 	bool bIsInGame = false;
@@ -380,67 +443,97 @@ namespace Core
 		using namespace UE4;
 		Controller = (UObject*)(UE4::GetFirstPlayerController(*GWorld));
 
-		std::cout << "CurrentMovementStyle -> " << Offsets::CurrentMovementStyleOffset << std::endl;
-		std::cout << "CharacterMovementOffset -> " << Offsets::CharacterMovementOffset << std::endl;
-		std::cout << "IsSkydivingFunc -> " << Offsets::IsSkydivingFunc << std::endl;
-		std::cout << "IsParachuteOpenFunc -> " << Offsets::IsParachuteOpenFunc << std::endl;
-		std::cout << "SetMovementModeFunc -> " << Offsets::SetMovementModeFunc << std::endl;
-
 		CheatManager = RiftAutomationUtils::CreateCheatManager(Controller);
 		RiftAutomationUtils::BugItGo(CheatManager, 0, 0, 0, 0, 0, 0);
-		RiftAutomationUtils::Summon(CheatManager, L"PlayerPawn_Athena_C");
-		std::cout << "Summoned" << std::endl;
+		RiftAutomationUtils::Summon(CheatManager, skCrypt("PlayerPawn_Athena_C"));
+		
+		DEBUG_LOG("PlayerPawn has been Summoned!\n");
 
-		Pawn = GlobalObjects->FindObject("PlayerPawn_Athena_C_");
-		GameState = GlobalObjects->FindObject("Athena_GameState_C_");
-		GameMode = GlobalObjects->FindObject("Athena_GameMode_C_");
+		Pawn = GlobalObjects->FindObject(skCrypt("PlayerPawn_Athena_C_"));
+		GameState = GlobalObjects->FindObject(skCrypt("Athena_GameState_C_")); //ENCRYPT THESE.
+		GameMode = GlobalObjects->FindObject(skCrypt("Athena_GameMode_C_"));
 		PlayerState = RiftAutomationUtils::GetPlayerState(Controller);
 		CharacterMovement = RiftAutomationUtils::GetCharacterMovementComponent(Pawn);
 
-		std::cout << "Pawn: " << Pawn << std::endl;
-		std::cout << "GameState: " << GameState << std::endl;
-		std::cout << "GameMode: " << GameMode << std::endl;
-		std::cout << "PlayerState: " << PlayerState << std::endl;
-		std::cout << "CharacterMovement: " << CharacterMovement << std::endl;
+		DEBUG_LOG("Pawn: %s\n", Pawn->GetFullName());
+		DEBUG_LOG("GameState: %s\n", GameState->GetFullName());
+		DEBUG_LOG("GameMode: %s\n", GameMode->GetFullName()); 
+		DEBUG_LOG("PlayerState: %s\n", PlayerState->GetFullName());
+		DEBUG_LOG("CharacterMovement: %s\n", CharacterMovement->GetFullName());
 
 		//UE4::UObject* NewTODM = UE4::StaticLoadObject(GlobalObjects->FindObjectByFullName("Class /Script/Engine.BlueprintGeneratedClass"), nullptr, L"/Game/TimeOfDay/TODM/STW/Children/TODM_STW_Winter_2018.TODM_STW_Winter_2018_C");
 		//RiftAutomationUtils::SetTimeOfDayManagerGameplayOverride(GameMode, NewTODM);
 
-		RiftAutomationUtils::SetPlaylist(GameState, "FortPlaylistAthena /Game/Athena/Playlists/Showdown/Playlist_ShowdownAlt_Solo.Playlist_ShowdownAlt_Solo", true, true);
-		std::cout << "SetPlaylist" << std::endl;
+		RiftAutomationUtils::SetPlaylist(GameState, skCrypt("FortPlaylistAthena /Game/Athena/Playlists/Showdown/Playlist_ShowdownAlt_Solo.Playlist_ShowdownAlt_Solo"), true, true);
+		DEBUG_LOG("SetPlaylist\n");
 
 		RiftAutomationUtils::Possess(Controller, Pawn);
-		std::cout << "Possessed" << std::endl;
+		DEBUG_LOG("Possess\n");
 
 		RiftAutomationUtils::JumpToSafeZonePhase(GameMode);
-		std::cout << "JumpToSafeZonePhase" << std::endl;
+		DEBUG_LOG("JumpToSafeZonePhase\n");
 
-		RiftAutomationUtils::OverridePawnCosmetic(Pawn, "AthenaCharacterItemDefinition /Game/Heroes/Commando/CosmeticCharacterItemDefinitions/CID_Commando_016_F_V1.CID_Commando_016_F_V1");
-		RiftAutomationUtils::OverridePawnCosmetic(Pawn, "AthenaGliderItemDefinition /Game/Athena/Items/Cosmetics/Gliders/Glider_ID_260_ShapeshifterFemale.Glider_ID_260_ShapeshifterFemale");
-		std::cout << "EnableSkin" << std::endl;
+		RiftAutomationUtils::OverridePawnCosmetic(Pawn, skCrypt("AthenaCharacterItemDefinition /Game/Heroes/Commando/CosmeticCharacterItemDefinitions/CID_Commando_016_F_V1.CID_Commando_016_F_V1"));
+		DEBUG_LOG("OverridePawnCosmetic\n");
+
+		std::string AccountName = RiftAutomationUtils::GetAccountName();
+		DEBUG_LOG("Player Name: %s\n", AccountName.c_str());
+		nlohmann::json PlayerLoadout = GetLoadoutFromAPI(AccountName);
+
+		bool DoesGliderExist = !(PlayerLoadout["glider"].is_null());
+		if (DoesGliderExist)
+		{
+			DEBUG_LOG("Glider DOES indeed exist in response!\n");
+			std::string GliderName = PlayerLoadout["glider"].get<std::string>();
+			std::cout << GliderName << std::endl;
+			RiftAutomationUtils::OverridePawnCosmetic(Pawn, GliderName.c_str(), true);
+		}
+		else
+			DEBUG_LOG("API down? Or glider is invalid!");
+
+		bool DoesPickaxeExist = !(PlayerLoadout["pickaxe"].is_null());
+		if (DoesPickaxeExist)
+		{
+			DEBUG_LOG("Pickaxe DOES indeed exist in response!\n");
+			std::string PickaxeName = PlayerLoadout["pickaxe"].get<std::string>();
+			std::cout << PickaxeName.c_str() << std::endl;
+			UE4::UObject* APID = GlobalObjects->FindObjectByFullNameInsensitive(PickaxeName.c_str());
+			UE4::UObject* WeaponDef = RiftAutomationUtils::GetWeaponDefinitionFromAPID(APID);
+			if (WeaponDef)
+				RiftAutomationUtils::EquipWeaponFromDefinition(Pawn, WeaponDef);
+			else
+				DEBUG_LOG("Invalid WeaponDefinition grabbed from AGID!");
+		}
+
+		bool DoesContrailExist = !(PlayerLoadout["contrail"].is_null());
+		if (DoesContrailExist)
+		{
+			DEBUG_LOG("Contrail DOES indeed exist in response!\n");
+			std::string ContrailName = PlayerLoadout["contrail"].get<std::string>();
+			std::cout << ContrailName.c_str() << std::endl;
+			RiftAutomationUtils::OverridePawnCosmetic(Pawn, ContrailName.c_str(), true);
+		}
 
 		RiftAutomationUtils::TeleportToSkyDive(Pawn, 100000);
-		std::cout << "TeleportToSkyDive" << std::endl;
+		DEBUG_LOG("TeleportToSkyDive\n");
 
 		RiftAutomationUtils::ServerReadyToStartMatch(Controller);
-		std::cout << "ServerReadyToStartMatch" << std::endl;
+		DEBUG_LOG("ServerReadyToStartMatch\n");
 
 		RiftAutomationUtils::StartMatch(GameMode);
-		std::cout << "StartMatch" << std::endl;
+		DEBUG_LOG("StartMatch\n");
 
-		RiftAutomationUtils::DestroyAll(CheatManager, "FortHLODSMActor");
-		std::cout << "DestroyAll" << std::endl;
+		RiftAutomationUtils::DestroyAll(CheatManager, skCrypt("FortHLODSMActor"));
+		DEBUG_LOG("DestroyAll\n");
 
 		RiftAutomationUtils::SetActorGodMode(Pawn, true);
-		std::cout << "GiveActorGodMode" << std::endl;
-
-		std::cout << "Player Name: " << RiftAutomationUtils::GetAccountName() << std::endl;
+		DEBUG_LOG("GiveActorGodMode\n");
 
 		RiftAutomationUtils::SetInfiniteAmmo(Controller);
-		std::cout << "InfiniteAmmo" << std::endl;
+		DEBUG_LOG("SetInfiniteAmmo\n");
 
-		RiftAutomationUtils::EquipWeapon(Pawn, "FortWeaponMeleeItemDefinition /Mantis/Items/UncleBrolly/WID_UncleBrolly_VR.WID_UncleBrolly_VR");
-		std::cout << "EquipWeapon" << std::endl;
+		//RiftAutomationUtils::EquipWeapon(Pawn, skCrypt("FortWeaponMeleeItemDefinition /Mantis/Items/UncleBrolly/WID_UncleBrolly_VR.WID_UncleBrolly_VR"));
+		DEBUG_LOG("EquipWeapon\n");
 
 		ExecutePatches();
 		bIsInGame = true;  //Figure out a way to do this as loading screen drops.
@@ -453,8 +546,8 @@ namespace Core
 	{
 		if (Function == Offsets::PlayButtonFunc)
 		{
-			std::cout << "Play button was clicked! " << Object->GetFullName() << std::endl;
-			RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), L"Apollo_Terrain");
+			DEBUG_LOG("Play button was clicked: %s\n", Object->GetFullName());
+			RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), skCrypt("Apollo_Terrain"));
 		}
 
 		else if (Function == Offsets::ReadyToStartMatchFunc)
@@ -462,7 +555,7 @@ namespace Core
 			std::string ObjName = Object->GetName();
 			if (ObjName.find("Athena_GameMode_C_") != std::string::npos)
 			{
-				std::cout << "Setting things up! " << Object->GetFullName() << std::endl;
+				DEBUG_LOG("Ready to start match: %s\n", Object->GetFullName());
 				LoadAthena();
 			}
 		}
@@ -472,7 +565,7 @@ namespace Core
 			if (Object == Pawn)
 			{
 				std::string FuncName = Function->GetName();
-				if (FuncName.find("Tick") != std::string::npos)
+				if (FuncName.find("Tick") != std::string::npos) //should we skCrypt "Tick" ? idk
 				{
 					if (RiftAutomationUtils::WantsToSprint(Controller))
 						RiftAutomationUtils::SetCurrentMovementStyle(Pawn, 3);
@@ -484,10 +577,6 @@ namespace Core
 						if (StopHoldingKey == false)
 						{
 							StopHoldingKey = true;
-
-							std::cout << "IsSkydiving -> " << RiftAutomationUtils::IsSkydiving(Pawn) << std::endl;
-							std::cout << "IsParachuteOpen -> " << RiftAutomationUtils::IsParachuteOpen(Pawn) << std::endl;
-							std::cout << "IsParachuteForcedOpen -> " << RiftAutomationUtils::IsParachuteForcedOpen(Pawn) << std::endl;
 
 							if (RiftAutomationUtils::IsSkydiving(Pawn))
 							{
@@ -512,20 +601,31 @@ namespace Core
 					else if (GetAsyncKeyState(VK_F5) & 0x8000) // Changing this from space to F5 due to the amount of times I've accidently gone back to lobby
 					{
 						bIsInGame = false;
-						RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), L"Frontend");
+						RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), skCrypt("Frontend"));
+					}
+					else if (GetAsyncKeyState(VK_F1) & 0x8000)
+					{
+						if (StopHoldingKey == false)
+						{
+							StopHoldingKey = true;
+							UE4::FVector PawnPos = RiftAutomationUtils::GetActorLocation(Pawn);
+							if (PawnPos.Z < 25000)
+							{
+								RiftAutomationUtils::TeleportToSkyDive(Pawn, 100000);
+							}
+						}
 					}
 					else
 						StopHoldingKey = false;
 				}
 			}
 		}
-
 		return ProcessEvent(Object, Function, Params);
 	}
 
 	static bool PostInit()
 	{
-		std::cout << "RIFT: PostInit has begun!" << std::endl;
+		DEBUG_LOG("Rift PostInit has begun!\n");
 
 		GetOffsets();
 
@@ -545,7 +645,7 @@ namespace Core
 		{
 			if (*GWorld)
 			{
-				UE4::UObject* AreOffsetsAvailable = GlobalObjects->FindObject("BndEvt__PlayButton_K2Node_ComponentBoundEvent_0_CommonButtonClicked__DelegateSignature");
+				UE4::UObject* AreOffsetsAvailable = GlobalObjects->FindObject(skCrypt("BndEvt__PlayButton_K2Node_ComponentBoundEvent_0_CommonButtonClicked__DelegateSignature"));
 				if (AreOffsetsAvailable)
 				{
 					bShouldLoop = false;
@@ -559,22 +659,22 @@ namespace Core
 
 	static bool Init()
 	{
-		GWorld = reinterpret_cast<UE4::UObject**>(Memory::FindPattern(FNPatterns::GWorldPattern, true, 3));
-		UE4::GObjectsAddr = Memory::FindPattern(FNPatterns::UObjectArrayPattern, true, 10);
-		UE4::FreeAddr = Memory::FindPattern(FNPatterns::MemoryFreePattern);
-		UE4::GetObjNameAddr = Memory::FindPattern(FNPatterns::GetObjectNamePattern);
-		UE4::GetFirstPlayerControllerAddr = Memory::FindPattern(FNPatterns::GetFirstPlayerControllerPattern);
-		UE4::ProcessEventAddr = Memory::FindPattern(FNPatterns::ProcessEventPattern);
-		UE4::StaticConstructObject_InternalAddr = Memory::FindPattern(FNPatterns::StaticConstructObject_InternalPattern);
-		UE4::GetNameByIndexAddr = Memory::FindPattern(FNPatterns::GetNameByIndexPattern);
-		UE4::StaticLoadObjectAddr = Memory::FindPattern(FNPatterns::StaticLoadObjectPattern);
-		UE4::SpawnActorAddr = Memory::FindPattern(FNPatterns::SpawnActorPattern);
-		UE4::SprintPatchAddr = Memory::FindPattern(FNPatterns::SprintPatchPattern);
-		UE4::WeaponPatchAddr = Memory::FindPattern(FNPatterns::WeaponPatchPattern);
+		GWorld = reinterpret_cast<UE4::UObject**>(Memory::FindPattern(skCrypt(GWORLD_PATTERN), true, 3));
+		UE4::GObjectsAddr = Memory::FindPattern(skCrypt(GOBJECT_PATTERN), true, 10);
+		UE4::FreeAddr = Memory::FindPattern(skCrypt(FMEMORYFREE_PATTERN));
+		UE4::GetObjNameAddr = Memory::FindPattern(skCrypt(GETOBJNAME_PATTERN));
+		UE4::GetFirstPlayerControllerAddr = Memory::FindPattern(skCrypt(GETFIRSTPLAYERCONTROLLER_PATTERN));
+		UE4::ProcessEventAddr = Memory::FindPattern(skCrypt(PROCESSEVENT_PATTERN));
+		UE4::StaticConstructObject_InternalAddr = Memory::FindPattern(skCrypt(STATICCONSTRUCTOBJECTINTERNAL_PATTERN));
+		UE4::GetNameByIndexAddr = Memory::FindPattern(skCrypt(GETNAMEBYINDEX_PATTERN));
+		UE4::StaticLoadObjectAddr = Memory::FindPattern(skCrypt(STATICLOADOBJECT_PATTERN)); //Not needed, if failed to find, don't worry.
+		UE4::SpawnActorAddr = Memory::FindPattern(skCrypt(SPAWNACTOR_PATTERN));
+		UE4::SprintPatchAddr = Memory::FindPattern(skCrypt(SPRINTPATCH_PATTERN));
+		UE4::WeaponPatchAddr = Memory::FindPattern(skCrypt(WEAPONPATCH_PATTERN));
 
 		if (!UE4::GObjectsAddr || !UE4::FreeAddr || !UE4::GetObjNameAddr || !UE4::GetFirstPlayerControllerAddr || !UE4::ProcessEventAddr || !UE4::StaticConstructObject_InternalAddr || !GWorld || !UE4::GetNameByIndexAddr || !UE4::StaticLoadObjectAddr || !UE4::SprintPatchAddr || !UE4::WeaponPatchAddr)
 		{
-			std::cout << "One or more patterns was incorrect." << std::endl;
+			DEBUG_LOG("One or more patterns was incorrect.\n");
 			return false;
 		}
 

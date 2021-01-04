@@ -290,7 +290,7 @@ namespace UE4
             return ObjectCount;
         }
 
-        inline UObject* FindObject(const std::string& name)
+        inline UObject* FindObject(const char* name)
         {
             for (int i = 0; i < this->Num(); ++i)
             {
@@ -308,7 +308,7 @@ namespace UE4
             return nullptr;
         }
 
-        inline UObject* FindObjectByFullName(const std::string& name)
+        inline UObject* FindObjectByFullName(const char* name)
         {
             for (int i = 0; i < this->Num(); ++i)
             {
@@ -326,6 +326,25 @@ namespace UE4
             return nullptr;
         }
 
+        inline UObject* FindObjectByFullNameInsensitive(const char* name)
+        {
+            for (int i = 0; i < this->Num(); ++i)
+            {
+                UObject* object = this->GetByIndex(i);
+                if (object == nullptr)
+                {
+                    continue;
+                }
+                std::string objectName = Util::upper_string(object->GetFullName());
+                std::string stringToFind = Util::upper_string(name);
+                if (objectName.find(stringToFind) != std::string::npos)
+                {
+                    return object;
+                }
+            }
+            return nullptr;
+        }
+
         inline DWORD FindOffset(const char* Class, const char* var)
         {
             FortUpdater* Updater = new FortUpdater();
@@ -333,7 +352,7 @@ namespace UE4
             {
                 return Updater->FindOffset(Class, var);
             }
-            std::cout << "Failed to initilize, one or more addresses are most likely wrong!" << std::endl;
+            DEBUG_LOG("Failed to call FindOffset, one or more addresses are most likely wrong!\n");
             return NULL;
         }
 
@@ -381,6 +400,25 @@ namespace UE4
         char unknown1[0x4];
         FVector Scale3D;
         char unknown2[0x4];
+    };
+
+    struct FLinearColor
+    {
+        float                                              R;                                                        // 0x0000(0x0004) (Edit, BlueprintVisible, ZeroConstructor, SaveGame, IsPlainOldData)
+        float                                              G;                                                        // 0x0004(0x0004) (Edit, BlueprintVisible, ZeroConstructor, SaveGame, IsPlainOldData)
+        float                                              B;                                                        // 0x0008(0x0004) (Edit, BlueprintVisible, ZeroConstructor, SaveGame, IsPlainOldData)
+        float                                              A;                                                        // 0x000C(0x0004) (Edit, BlueprintVisible, ZeroConstructor, SaveGame, IsPlainOldData)
+
+        inline FLinearColor()
+            : R(0), G(0), B(0), A(0)
+        { }
+
+        inline FLinearColor(float r, float g, float b, float a)
+            : R(r),
+            G(g),
+            B(b),
+            A(a)
+        { }
     };
 
     static void* GetFirstPlayerController(void* World)

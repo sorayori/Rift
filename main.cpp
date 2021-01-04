@@ -4,8 +4,11 @@
 
 void MainThread()
 {
+#ifdef RIFT_DEVELOPMENT
     Util::OPEN_CONSOLE();
-    Core::Init();
+#endif
+    if (!Core::Init())
+        DEBUG_LOG("Init failed, one or more addresses are most likely incorrect!\n");
 }
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved)
 {
