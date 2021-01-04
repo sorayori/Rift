@@ -24,8 +24,10 @@ size_t writeFunction(void* ptr, size_t size, size_t nmemb, std::string* data) {
 
 nlohmann::json GetLoadoutFromAPI(std::string AccountName)
 {
-    std::string URLBase = "https://api.riftfn.xyz/fortnite/api/game/v2/internal/profile/";
-    std::string URL = URLBase.append(AccountName);
+    auto URLBaseEncrypted = skCrypt("https://api.riftfn.xyz/fortnite/api/game/v2/internal/profile/");
+    std::string URLBaseDecrypted = URLBaseEncrypted.decrypt();
+    std::string URL = URLBaseDecrypted.append(AccountName);
+    URLBaseEncrypted.clear();
 
     curl_global_init(CURL_GLOBAL_DEFAULT);
     auto curl = curl_easy_init();
