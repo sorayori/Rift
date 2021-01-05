@@ -48,6 +48,7 @@ namespace Core
 		UE4::UObject* Default__FortKismetLibrary;
 		UE4::UObject* Default__FortItemAndVariantSwapHelpers;
 
+		UE4::UObject* IsFallingFunc;
 		UE4::UObject* GetCurrentMontageFunc;
 		UE4::UObject* GetAnimInstanceFunc;
 		UE4::UObject* Montage_StopFunc;
@@ -480,6 +481,13 @@ namespace Core
 		{
 			return *reinterpret_cast<uint8_t*>(__int64(InFortPlayerState) + __int64(Offsets::CharacterBodyTypeOffset));
 		}
+
+		static bool IsFalling(UE4::UObject* InNavMovementComponent)
+		{
+			bool ReturnValue;
+			UE4::ProcessEvent(InNavMovementComponent, Offsets::IsFallingFunc, &ReturnValue, 0);
+			return ReturnValue;
+		}
 	};
 
 	static void ExecutePatches()
@@ -523,6 +531,7 @@ namespace Core
 		Offsets::Default__FortKismetLibrary = GlobalObjects->FindObjectByFullName(skCrypt("FortKismetLibrary /Script/FortniteGame.Default__FortKismetLibrary"));
 		Offsets::Default__FortItemAndVariantSwapHelpers = GlobalObjects->FindObjectByFullName(skCrypt("FortItemAndVariantSwapHelpers /Script/FortniteGame.Default__FortItemAndVariantSwapHelpers"));
 		
+		Offsets::IsFallingFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.NavMovementComponent.IsFalling"));
 		Offsets::GetCurrentMontageFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.Character.GetCurrentMontage"));
 		Offsets::GetAnimInstanceFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.SkeletalMeshComponent.GetAnimInstance"));
 		Offsets::Montage_StopFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.AnimInstance.Montage_Stop"));
@@ -669,12 +678,17 @@ namespace Core
 		if (bIsInGame)
 		{
 			DEBUG_LOG("Emote Asset: %s", EmoteAsset->GetName());
-			CurrentEmote = RiftAutomationUtils::GetAnimationHardReference(EmoteAsset, RiftAutomationUtils::GetCharacterBodyType(PlayerState), RiftAutomationUtils::GetCharacterGender(PlayerState), Pawn);
-			if (CurrentEmote)
+			UE4::UObject* NewEmote = RiftAutomationUtils::GetAnimationHardReference(EmoteAsset, RiftAutomationUtils::GetCharacterBodyType(PlayerState), RiftAutomationUtils::GetCharacterGender(PlayerState), Pawn);
+			if (NewEmote && NewEmote != CurrentEmote)
 			{
-				UE4::FVector PlayerPos = RiftAutomationUtils::GetActorLocation(Pawn);
-				CurrentEmotePositon = PlayerPos;
-				RiftAutomationUtils::PlayLocalAnimMontage(Pawn, CurrentEmote);
+				CurrentEmote = NewEmote;
+				bool IsPlayerFalling = RiftAutomationUtils::IsFalling(CharacterMovement);
+				if (!IsPlayerFalling)
+				{
+					UE4::FVector PlayerPos = RiftAutomationUtils::GetActorLocation(Pawn);
+					CurrentEmotePositon = PlayerPos;
+					RiftAutomationUtils::PlayLocalAnimMontage(Pawn, CurrentEmote);
+				}
 			}
 		}
 		return PlayEmoteItemInternal(PlayerController, EmoteAsset, PlayMode);
@@ -720,6 +734,12 @@ namespace Core
 						float Ydif = PawnPos.Y - CurrentEmotePositon.Y;
 						if (Xdif > 75 || Xdif < -75 || Ydif > 75 || Ydif < -75)
 							RiftAutomationUtils::StopEmoting();
+
+						bool IsPlayerFalling = RiftAutomationUtils::IsFalling(CharacterMovement);
+						if (IsPlayerFalling)
+						{
+							RiftAutomationUtils::StopEmoting();
+						}
 					}
 
 					if (GetAsyncKeyState(VK_SPACE) & 0x8000)
@@ -744,7 +764,9 @@ namespace Core
 							}
 							else
 							{
-								RiftAutomationUtils::StopEmoting();
+								if (CurrentEmote)
+									RiftAutomationUtils::StopEmoting();
+
 								RiftAutomationUtils::Jump(Pawn);
 							}
 						}
