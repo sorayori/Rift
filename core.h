@@ -19,6 +19,9 @@ namespace Core
 	UE4::UObject* PlayerState;
 	UE4::UObject* CharacterMovement;
 
+	UE4::UObject* CurrentEmote;
+	UE4::FVector CurrentEmotePositon;
+
 	namespace Offsets
 	{
 		DWORD CurrentMovementStyleOffset;
@@ -36,12 +39,21 @@ namespace Core
 		DWORD CurrentWeaponOffset;
 		DWORD bIsTargetingOffset;
 		DWORD WeaponDefinitionOffset;
+		DWORD CharacterMeshOffset;
+		DWORD CharacterGenderOffset;
+		DWORD CharacterBodyTypeOffset;
 
 		UE4::UObject* CheatManagerClass;
 
 		UE4::UObject* Default__FortKismetLibrary;
 		UE4::UObject* Default__FortItemAndVariantSwapHelpers;
 
+		UE4::UObject* GetCurrentMontageFunc;
+		UE4::UObject* GetAnimInstanceFunc;
+		UE4::UObject* Montage_StopFunc;
+		UE4::UObject* PlayLocalAnimMontageFunc;
+		UE4::UObject* GetAnimationHardReferenceFunc;
+		UE4::UObject* PlayEmoteItemFunc;
 		UE4::UObject* ServerPlayEmoteItemFunc;
 		UE4::UObject* SetTimeOfDayManagerGameplayOverrideFunc;
 		UE4::UObject* BugItGoFunc;
@@ -370,6 +382,104 @@ namespace Core
 			ServerPlayEmoteItemParams.EmoteRandomNumber = InEmoteRandomNumber;
 			UE4::ProcessEvent(InController, Offsets::ServerPlayEmoteItemFunc, &ServerPlayEmoteItemParams, 0);
 		};
+
+		static void PlayEmoteItem(UE4::UObject* InController, UE4::UObject* InEmoteAsset, uint8_t InPlayMode)
+		{
+			struct
+			{
+				UE4::UObject* EmoteAsset;
+				uint8_t PlayMode;
+			} PlayEmoteItemParams;
+
+			PlayEmoteItemParams.EmoteAsset = InEmoteAsset;
+			PlayEmoteItemParams.PlayMode = InPlayMode;
+
+			UE4::ProcessEvent(InController, Offsets::PlayEmoteItemFunc, &PlayEmoteItemParams, 0);
+		};
+
+		static UE4::UObject* GetAnimationHardReference(UE4::UObject* InFortMontageItemDefinitionBase, uint8_t InBodyType, uint8_t InGender, UE4::UObject* InPawnContext)
+		{
+			struct
+			{
+				uint8_t BodyType; //EFortCustomBodyType
+				uint8_t Gender; //EFortCustomGender
+				UE4::UObject* PawnContext;
+				UE4::UObject* ReturnValue;
+			} GetAnimationHardReferenceParams;
+			GetAnimationHardReferenceParams.BodyType = InBodyType;
+			GetAnimationHardReferenceParams.Gender = InGender;
+			GetAnimationHardReferenceParams.PawnContext = InPawnContext;
+			UE4::ProcessEvent(InFortMontageItemDefinitionBase, Offsets::GetAnimationHardReferenceFunc, &GetAnimationHardReferenceParams, 0);
+			return GetAnimationHardReferenceParams.ReturnValue;
+		}
+
+		static void Montage_Stop(UE4::UObject* InAnimInstance, float BlendOutTime, UE4::UObject* InAnimMontage)
+		{
+			struct
+			{
+				float InBlendOutTime;
+				UE4::UObject* Montage;
+			} Montage_StopParams;
+			Montage_StopParams.InBlendOutTime = BlendOutTime;
+			Montage_StopParams.Montage = InAnimMontage;
+			UE4::ProcessEvent(InAnimInstance, Offsets::Montage_StopFunc, &Montage_StopParams, 0);
+		}
+
+		static void PlayLocalAnimMontage(UE4::UObject* InFortPawn, UE4::UObject* InNewAnimMontage)
+		{
+			struct
+			{
+				UE4::UObject* NewAnimMontage;
+				float InPlayRate;
+				UE4::FName StartSectionName;
+				bool bNoBlend;
+				float ReturnValue;
+			} PlayLocalAnimMontageParams;
+
+			PlayLocalAnimMontageParams.NewAnimMontage = InNewAnimMontage;
+			PlayLocalAnimMontageParams.InPlayRate = 1.0f;
+			PlayLocalAnimMontageParams.StartSectionName.ComparisonIndex = 0;
+			PlayLocalAnimMontageParams.StartSectionName.Number = 0;
+			PlayLocalAnimMontageParams.bNoBlend = false;
+			UE4::ProcessEvent(InFortPawn, Offsets::PlayLocalAnimMontageFunc, &PlayLocalAnimMontageParams, 0);
+		}
+
+		static UE4::UObject* GetCharacterSkletalMeshComponent(UE4::UObject* InCharacter)
+		{
+			return *reinterpret_cast<UE4::UObject**>(__int64(InCharacter) + __int64(Offsets::CharacterMeshOffset));
+		}
+
+		static UE4::UObject* GetCurrentMontage(UE4::UObject* InCharacter)
+		{
+			UE4::UObject* ReturnValue;
+			UE4::ProcessEvent(InCharacter, Offsets::GetCurrentMontageFunc, &ReturnValue, 0);
+			return ReturnValue;
+		}
+
+		static UE4::UObject* GetAnimInstance(UE4::UObject* InSkeletalMeshComponent)
+		{
+			UE4::UObject* ReturnValue;
+			UE4::ProcessEvent(InSkeletalMeshComponent, Offsets::GetAnimInstanceFunc, &ReturnValue, 0);
+			return ReturnValue;
+		}
+
+		static void StopEmoting()
+		{
+			CurrentEmote = nullptr;
+			UE4::UObject* SkeletalMeshComponent = RiftAutomationUtils::GetCharacterSkletalMeshComponent(Pawn);
+			UE4::UObject* AnimInstance = RiftAutomationUtils::GetAnimInstance(SkeletalMeshComponent);
+			RiftAutomationUtils::Montage_Stop(AnimInstance, 0.1f, CurrentEmote);
+		}
+
+		static uint8_t GetCharacterGender(UE4::UObject* InFortPlayerState)
+		{
+			return *reinterpret_cast<uint8_t*>(__int64(InFortPlayerState) + __int64(Offsets::CharacterGenderOffset));
+		}
+
+		static uint8_t GetCharacterBodyType(UE4::UObject* InFortPlayerState)
+		{
+			return *reinterpret_cast<uint8_t*>(__int64(InFortPlayerState) + __int64(Offsets::CharacterBodyTypeOffset));
+		}
 	};
 
 	static void ExecutePatches()
@@ -403,13 +513,22 @@ namespace Core
 		Offsets::CurrentWeaponOffset = GlobalObjects->FindOffset(skCrypt("FortPawn"), skCrypt("CurrentWeapon"));
 		Offsets::bIsTargetingOffset = GlobalObjects->FindOffset(skCrypt("FortWeapon"), skCrypt("bIsTargeting"));
 		Offsets::PawnPlayerStateOffset = GlobalObjects->FindOffset(skCrypt("Controller"), skCrypt("PlayerState"));
-		Offsets::WeaponDefinitionOffset = GlobalObjects->FindOffset("AthenaPickaxeItemDefinition", "WeaponDefinition");
+		Offsets::WeaponDefinitionOffset = GlobalObjects->FindOffset(skCrypt("AthenaPickaxeItemDefinition"), skCrypt("WeaponDefinition"));
+		Offsets::CharacterMeshOffset = GlobalObjects->FindOffset(skCrypt("Character"), skCrypt("Mesh"));
+		Offsets::CharacterGenderOffset = GlobalObjects->FindOffset(skCrypt("FortPlayerState"), skCrypt("CharacterGender"));
+		Offsets::CharacterBodyTypeOffset = GlobalObjects->FindOffset(skCrypt("FortPlayerState"), skCrypt("CharacterBodyType"));
 
 		Offsets::CheatManagerClass = GlobalObjects->FindObjectByFullName(skCrypt("Class /Script/Engine.CheatManager"));
 
 		Offsets::Default__FortKismetLibrary = GlobalObjects->FindObjectByFullName(skCrypt("FortKismetLibrary /Script/FortniteGame.Default__FortKismetLibrary"));
 		Offsets::Default__FortItemAndVariantSwapHelpers = GlobalObjects->FindObjectByFullName(skCrypt("FortItemAndVariantSwapHelpers /Script/FortniteGame.Default__FortItemAndVariantSwapHelpers"));
 		
+		Offsets::GetCurrentMontageFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.Character.GetCurrentMontage"));
+		Offsets::GetAnimInstanceFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.SkeletalMeshComponent.GetAnimInstance"));
+		Offsets::Montage_StopFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.AnimInstance.Montage_Stop"));
+		Offsets::PlayLocalAnimMontageFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortPawn.PlayLocalAnimMontage"));
+		Offsets::GetAnimationHardReferenceFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortMontageItemDefinitionBase.GetAnimationHardReference"));
+		Offsets::PlayEmoteItemFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortPlayerController.PlayEmoteItem"));
 		Offsets::ServerPlayEmoteItemFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortPlayerController.ServerPlayEmoteItem"));
 		Offsets::SetTimeOfDayManagerGameplayOverrideFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortGameModeAthena.SetTimeOfDayManagerGameplayOverride"));
 		Offsets::BugItGoFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.CheatManager.BugItGo"));
@@ -455,7 +574,8 @@ namespace Core
 		PlayerState = RiftAutomationUtils::GetPlayerState(Controller);
 		CharacterMovement = RiftAutomationUtils::GetCharacterMovementComponent(Pawn);
 
-		DEBUG_LOG("Pawn: %s\n", Pawn->GetFullName());
+		DEBUG_LOG("Controller: %p : %s\n", Controller, Controller->GetFullName());
+		DEBUG_LOG("Pawn: %p : %s\n", Pawn, Pawn->GetFullName());
 		DEBUG_LOG("GameState: %s\n", GameState->GetFullName());
 		DEBUG_LOG("GameMode: %s\n", GameMode->GetFullName()); 
 		DEBUG_LOG("PlayerState: %s\n", PlayerState->GetFullName());
@@ -540,8 +660,29 @@ namespace Core
 	}
 
 	bool StopHoldingKey = false;
+
+	typedef void (__fastcall* fPlayEmoteItemInternal)(UE4::UObject*, UE4::UObject*, uint8_t);
+	static fPlayEmoteItemInternal PlayEmoteItemInternal;
+
+	static void PlayEmoteItemHook(UE4::UObject* PlayerController, UE4::UObject* EmoteAsset, uint8_t PlayMode)
+	{
+		if (bIsInGame)
+		{
+			DEBUG_LOG("Emote Asset: %s", EmoteAsset->GetName());
+			CurrentEmote = RiftAutomationUtils::GetAnimationHardReference(EmoteAsset, RiftAutomationUtils::GetCharacterBodyType(PlayerState), RiftAutomationUtils::GetCharacterGender(PlayerState), Pawn);
+			if (CurrentEmote)
+			{
+				UE4::FVector PlayerPos = RiftAutomationUtils::GetActorLocation(Pawn);
+				CurrentEmotePositon = PlayerPos;
+				RiftAutomationUtils::PlayLocalAnimMontage(Pawn, CurrentEmote);
+			}
+		}
+		return PlayEmoteItemInternal(PlayerController, EmoteAsset, PlayMode);
+	}
+
 	typedef void* (__fastcall* fProcessEvent)(UE4::UObject* Object, UE4::UObject* Function, void* Params);
 	static fProcessEvent ProcessEvent;
+
 	static void* ProcessEventHook(UE4::UObject* Object, UE4::UObject* Function, void* Params)
 	{
 		if (Function == Offsets::PlayButtonFunc)
@@ -572,6 +713,15 @@ namespace Core
 					else
 						RiftAutomationUtils::SetCurrentMovementStyle(Pawn, 0);
 
+					if (CurrentEmote)
+					{
+						UE4::FVector PawnPos = RiftAutomationUtils::GetActorLocation(Pawn);
+						float Xdif = PawnPos.X - CurrentEmotePositon.X;
+						float Ydif = PawnPos.Y - CurrentEmotePositon.Y;
+						if (Xdif > 75 || Xdif < -75 || Ydif > 75 || Ydif < -75)
+							RiftAutomationUtils::StopEmoting();
+					}
+
 					if (GetAsyncKeyState(VK_SPACE) & 0x8000)
 					{
 						if (StopHoldingKey == false)
@@ -594,15 +744,12 @@ namespace Core
 							}
 							else
 							{
+								RiftAutomationUtils::StopEmoting();
 								RiftAutomationUtils::Jump(Pawn);
 							}
 						}
 					}
-					else if (GetAsyncKeyState(VK_F5) & 0x8000) // Changing this from space to F5 due to the amount of times I've accidently gone back to lobby
-					{
-						bIsInGame = false;
-						RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), skCrypt("Frontend"));
-					}
+
 					else if (GetAsyncKeyState(VK_F1) & 0x8000)
 					{
 						if (StopHoldingKey == false)
@@ -611,10 +758,19 @@ namespace Core
 							UE4::FVector PawnPos = RiftAutomationUtils::GetActorLocation(Pawn);
 							if (PawnPos.Z < 25000)
 							{
+								RiftAutomationUtils::StopEmoting();
 								RiftAutomationUtils::TeleportToSkyDive(Pawn, 100000);
 							}
 						}
 					}
+
+					else if (GetAsyncKeyState(VK_F5) & 0x8000)
+					{
+						bIsInGame = false;
+						RiftAutomationUtils::StopEmoting();
+						RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), skCrypt("Frontend"));
+					}
+
 					else
 						StopHoldingKey = false;
 				}
@@ -630,9 +786,11 @@ namespace Core
 		GetOffsets();
 
 		ProcessEvent = (fProcessEvent)(UE4::ProcessEventAddr);
+		PlayEmoteItemInternal = (fPlayEmoteItemInternal)(UE4::PlayEmoteItemInternalAddr);
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)ProcessEvent, ProcessEventHook);
+		DetourAttach(&(PVOID&)PlayEmoteItemInternal, PlayEmoteItemHook);
 		DetourTransactionCommit();
 
 		return true;
@@ -671,6 +829,7 @@ namespace Core
 		UE4::SpawnActorAddr = Memory::FindPattern(skCrypt(SPAWNACTOR_PATTERN));
 		UE4::SprintPatchAddr = Memory::FindPattern(skCrypt(SPRINTPATCH_PATTERN));
 		UE4::WeaponPatchAddr = Memory::FindPattern(skCrypt(WEAPONPATCH_PATTERN));
+		UE4::PlayEmoteItemInternalAddr = Memory::FindPattern(skCrypt(PLAYEMOTEITEM_PATTERN));
 
 		if (!UE4::GObjectsAddr || !UE4::FreeAddr || !UE4::GetObjNameAddr || !UE4::GetFirstPlayerControllerAddr || !UE4::ProcessEventAddr || !UE4::StaticConstructObject_InternalAddr || !GWorld || !UE4::GetNameByIndexAddr || !UE4::StaticLoadObjectAddr || !UE4::SprintPatchAddr || !UE4::WeaponPatchAddr)
 		{

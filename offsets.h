@@ -41,3 +41,6 @@
 
 // Weapon patch, required.
 #define WEAPONPATCH_PATTERN "0F 84 ? ? ? ? 0F 2F F7 0F 86 ? ? ? ? 48 8B 00" // replace with 0F 85 ? ? ? ? 0F 2F F7 0F 8D ? ? ? ? 48 8B 00
+
+//we hook this for emoting
+#define PLAYEMOTEITEM_PATTERN "48 85 D2 0F 84 ? ? ? ? 48 89 74 24 20 57 48 83 EC 50"
