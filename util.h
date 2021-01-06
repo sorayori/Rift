@@ -7,7 +7,7 @@
 #ifdef RIFT_DEVELOPMENT
 #define DEBUG_LOG(input, ...) printf(input, __VA_ARGS__)
 #else
-#define DEBUG_LOG(input, ...)
+#define DEBUG_LOG(input, ...) do {} while (0)
 #endif
 
 class Util

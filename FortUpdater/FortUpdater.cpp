@@ -136,6 +136,7 @@ DWORD FortUpdater::FindOffset(const char* Class, const char* varName)
 			return NULL; //Return NULL if checked all properties of the class.
 		}
 	}
+	return NULL;
 }
 
 void FortUpdater::cFixName(char* Name)

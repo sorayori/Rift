@@ -42,12 +42,16 @@ namespace Core
 		DWORD CharacterMeshOffset;
 		DWORD CharacterGenderOffset;
 		DWORD CharacterBodyTypeOffset;
+		DWORD MaxNumItemsInCreativeChestsOffset;
+		DWORD DefaultFlagRegionIdOffset;
 
 		UE4::UObject* CheatManagerClass;
 
 		UE4::UObject* Default__FortKismetLibrary;
 		UE4::UObject* Default__FortItemAndVariantSwapHelpers;
+		UE4::UObject* Default__FortRuntimeOptions;
 
+		UE4::UObject* GetRuntimeOptionsFunc;
 		UE4::UObject* PlayerPawnAthenaTickFunc;
 		UE4::UObject* IsFallingFunc;
 		UE4::UObject* GetCurrentMontageFunc;
@@ -489,10 +493,30 @@ namespace Core
 			UE4::ProcessEvent(InNavMovementComponent, Offsets::IsFallingFunc, &ReturnValue, 0);
 			return ReturnValue;
 		}
+
+		static UE4::UObject* GetRuntimeOptions()
+		{
+			UE4::UObject* ReturnValue;
+			UE4::ProcessEvent(Offsets::Default__FortRuntimeOptions, Offsets::GetRuntimeOptionsFunc, &ReturnValue, 0);
+			return ReturnValue;
+		}
+
+		static UE4::FString GetDefaultFlagRegionId(UE4::UObject* InFortRuntimeOptions)
+		{
+			return *reinterpret_cast<UE4::FString*>(__int64(InFortRuntimeOptions) + __int64(Offsets::DefaultFlagRegionIdOffset));
+		}
+
+		static int GetMaxNumItemsInCreativeChests(UE4::UObject* InFortRuntimeOptions)
+		{
+			return *reinterpret_cast<int*>(__int64(InFortRuntimeOptions) + __int64(Offsets::MaxNumItemsInCreativeChestsOffset));
+		}
+
 	};
 
 	static void ExecutePatches()
 	{
+#pragma warning( push )
+#pragma warning( disable : 4309 )
 		//Sprinting Patch
 		*(char*)(UE4::SprintPatchAddr + 0x0) = 0x90;
 		*(char*)(UE4::SprintPatchAddr + 0x1) = 0x90;
@@ -504,6 +528,22 @@ namespace Core
 		//Weapon Patch
 		*(char*)(UE4::WeaponPatchAddr + 0x1) = 0x85;
 		*(char*)(UE4::WeaponPatchAddr + 0xA) = 0x8D;
+#pragma warning( pop )
+	}
+
+	static void CrashGame() //pretty dumb and *unpredictable* way of crashing the game
+	{
+		*(char*)(UE4::ProcessEventAddr) = 0x0;
+		*(char*)(UE4::ProcessEventAddr + 0x1) = 0x0;
+
+		*(char*)(UE4::SpawnActorAddr) = 0x0;
+		*(char*)(UE4::SpawnActorAddr + 0x1) = 0x0;
+
+		*(char*)(UE4::StaticConstructObject_InternalAddr) = 0x0;
+		*(char*)(UE4::StaticConstructObject_InternalAddr + 0x1) = 0x0;
+		
+		*(char*)(UE4::GetNameByIndexAddr) = 0x0;
+		*(char*)(UE4::GetNameByIndexAddr + 0x1) = 0x0;
 	}
 
 	static void GetOffsets()
@@ -526,12 +566,17 @@ namespace Core
 		Offsets::CharacterMeshOffset = GlobalObjects->FindOffset(skCrypt("Character"), skCrypt("Mesh"));
 		Offsets::CharacterGenderOffset = GlobalObjects->FindOffset(skCrypt("FortPlayerState"), skCrypt("CharacterGender"));
 		Offsets::CharacterBodyTypeOffset = GlobalObjects->FindOffset(skCrypt("FortPlayerState"), skCrypt("CharacterBodyType"));
+		Offsets::MaxNumItemsInCreativeChestsOffset = GlobalObjects->FindOffset(skCrypt("FortRuntimeOptions"), skCrypt("MaxNumItemsInCreativeChests"));
+		Offsets::DefaultFlagRegionIdOffset = GlobalObjects->FindOffset(skCrypt("FortRuntimeOptions"), skCrypt("DefaultFlagRegionId"));
+
 
 		Offsets::CheatManagerClass = GlobalObjects->FindObjectByFullName(skCrypt("Class /Script/Engine.CheatManager"));
 
 		Offsets::Default__FortKismetLibrary = GlobalObjects->FindObjectByFullName(skCrypt("FortKismetLibrary /Script/FortniteGame.Default__FortKismetLibrary"));
 		Offsets::Default__FortItemAndVariantSwapHelpers = GlobalObjects->FindObjectByFullName(skCrypt("FortItemAndVariantSwapHelpers /Script/FortniteGame.Default__FortItemAndVariantSwapHelpers"));
-		
+		Offsets::Default__FortRuntimeOptions = GlobalObjects->FindObjectByFullName(skCrypt("FortRuntimeOptions /Script/FortniteGame.Default__FortRuntimeOptions"));
+
+		Offsets::GetRuntimeOptionsFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortRuntimeOptions.GetRuntimeOptions"));
 		Offsets::PlayerPawnAthenaTickFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Game/Athena/PlayerPawn_Athena.PlayerPawn_Athena_C.ReceiveTick"));
 		Offsets::IsFallingFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.NavMovementComponent.IsFalling"));
 		Offsets::GetCurrentMontageFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.Character.GetCurrentMontage"));
@@ -616,7 +661,7 @@ namespace Core
 		{
 			DEBUG_LOG("Glider DOES indeed exist in response!\n");
 			std::string GliderName = PlayerLoadout["glider"].get<std::string>();
-			std::cout << GliderName << std::endl;
+			DEBUG_LOG(GliderName.c_str());
 			RiftAutomationUtils::OverridePawnCosmetic(Pawn, GliderName.c_str(), true);
 		}
 		else
@@ -627,7 +672,7 @@ namespace Core
 		{
 			DEBUG_LOG("Pickaxe DOES indeed exist in response!\n");
 			std::string PickaxeName = PlayerLoadout["pickaxe"].get<std::string>();
-			std::cout << PickaxeName.c_str() << std::endl;
+			DEBUG_LOG(PickaxeName.c_str());
 			UE4::UObject* APID = GlobalObjects->FindObjectByFullNameInsensitive(PickaxeName.c_str());
 			UE4::UObject* WeaponDef = RiftAutomationUtils::GetWeaponDefinitionFromAPID(APID);
 			if (WeaponDef)
@@ -641,7 +686,7 @@ namespace Core
 		{
 			DEBUG_LOG("Contrail DOES indeed exist in response!\n");
 			std::string ContrailName = PlayerLoadout["contrail"].get<std::string>();
-			std::cout << ContrailName.c_str() << std::endl;
+			DEBUG_LOG(ContrailName.c_str());
 			RiftAutomationUtils::OverridePawnCosmetic(Pawn, ContrailName.c_str(), true);
 		}
 
@@ -704,13 +749,28 @@ namespace Core
 		if (Function == Offsets::PlayButtonFunc)
 		{
 			DEBUG_LOG("Play button was clicked: %s\n", Object->GetFullName());
-			RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), skCrypt("Apollo_Terrain"));
+			UE4::UObject* RuntimeOptions = RiftAutomationUtils::GetRuntimeOptions();
+			std::string ImposterCheckOne = RiftAutomationUtils::GetDefaultFlagRegionId(RuntimeOptions).ToString();
+			int ImposterCheckTwo = RiftAutomationUtils::GetMaxNumItemsInCreativeChests(RuntimeOptions);
+			auto KismetDefaultFlagRegionId = skCrypt("Rift");
+			if (ImposterCheckOne == KismetDefaultFlagRegionId.decrypt() && ImposterCheckTwo == 3945)
+			{
+				KismetDefaultFlagRegionId.clear();
+				RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), skCrypt("Apollo_Terrain"));
+			}
+			else
+			{
+				KismetDefaultFlagRegionId.clear();
+				DEBUG_LOG("RuntimeOptions mismatch, crashing the game!");
+				CrashGame();
+			}
+
 		}
 
 		else if (Function == Offsets::ReadyToStartMatchFunc)
 		{
 			std::string ObjName = Object->GetName();
-			if (ObjName.find("Athena_GameMode_C_") != std::string::npos)
+			if (ObjName.find(skCrypt("Athena_GameMode_C_")) != std::string::npos)
 			{
 				DEBUG_LOG("Ready to start match: %s\n", Object->GetFullName());
 				LoadAthena();
@@ -818,7 +878,20 @@ namespace Core
 
 	DWORD StartupGWorldCheckLoop(LPVOID lpParam)
 	{
+		bool bCheckGWorldOnce = true;
 		bool bShouldLoop = true;
+
+		if (bCheckGWorldOnce)
+		{
+			if (*GWorld) // GWorld should NOT be existant on injection, most likely means someones trying to skid Rift.
+			{
+				bCheckGWorldOnce = false;
+				DEBUG_LOG("Rift should not be injected post-GWorld");
+				CrashGame();
+			}
+			bCheckGWorldOnce = false;
+		}
+
 		while (bShouldLoop)
 		{
 			if (*GWorld)
@@ -851,8 +924,27 @@ namespace Core
 		UE4::WeaponPatchAddr = Memory::FindPattern(skCrypt(WEAPONPATCH_PATTERN));
 		UE4::PlayEmoteItemInternalAddr = Memory::FindPattern(skCrypt(PLAYEMOTEITEM_PATTERN));
 
-		if (!UE4::GObjectsAddr || !UE4::FreeAddr || !UE4::GetObjNameAddr || !UE4::GetFirstPlayerControllerAddr || !UE4::ProcessEventAddr || !UE4::StaticConstructObject_InternalAddr || !GWorld || !UE4::GetNameByIndexAddr || !UE4::StaticLoadObjectAddr || !UE4::SprintPatchAddr || !UE4::WeaponPatchAddr)
+		if (!UE4::GObjectsAddr || !UE4::FreeAddr || !UE4::GetObjNameAddr || !UE4::GetFirstPlayerControllerAddr || !UE4::ProcessEventAddr || !UE4::StaticConstructObject_InternalAddr || !GWorld || !UE4::GetNameByIndexAddr || !UE4::SprintPatchAddr || !UE4::WeaponPatchAddr)
 		{
+			if (!UE4::GObjectsAddr)
+				DEBUG_LOG("Failed to find GObjects.");
+			if (!UE4::FreeAddr)
+				DEBUG_LOG("Failed to find Free.");
+			if (!UE4::GetObjNameAddr)
+				DEBUG_LOG("Failed to find GetObjectName.");
+			if (!UE4::ProcessEventAddr)
+				DEBUG_LOG("Failed to find ProcessEvent.");
+			if (!UE4::StaticConstructObject_InternalAddr)
+				DEBUG_LOG("Failed to find StaticConstructObject_Internal.");
+			if (!GWorld)
+				DEBUG_LOG("Failed to find GWorld.");
+			if (!UE4::GetNameByIndexAddr)
+				DEBUG_LOG("Failed to find GetNameByIndex.");
+			if (!UE4::SprintPatchAddr)
+				DEBUG_LOG("Failed to find Sprint Patch.");
+			if (!UE4::WeaponPatchAddr)
+				DEBUG_LOG("Failed to find Weapon Patch.");
+
 			DEBUG_LOG("One or more patterns was incorrect.\n");
 			return false;
 		}
