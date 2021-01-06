@@ -48,6 +48,7 @@ namespace Core
 		UE4::UObject* Default__FortKismetLibrary;
 		UE4::UObject* Default__FortItemAndVariantSwapHelpers;
 
+		UE4::UObject* PlayerPawnAthenaTickFunc;
 		UE4::UObject* IsFallingFunc;
 		UE4::UObject* GetCurrentMontageFunc;
 		UE4::UObject* GetAnimInstanceFunc;
@@ -531,6 +532,7 @@ namespace Core
 		Offsets::Default__FortKismetLibrary = GlobalObjects->FindObjectByFullName(skCrypt("FortKismetLibrary /Script/FortniteGame.Default__FortKismetLibrary"));
 		Offsets::Default__FortItemAndVariantSwapHelpers = GlobalObjects->FindObjectByFullName(skCrypt("FortItemAndVariantSwapHelpers /Script/FortniteGame.Default__FortItemAndVariantSwapHelpers"));
 		
+		Offsets::PlayerPawnAthenaTickFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Game/Athena/PlayerPawn_Athena.PlayerPawn_Athena_C.ReceiveTick"));
 		Offsets::IsFallingFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.NavMovementComponent.IsFalling"));
 		Offsets::GetCurrentMontageFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.Character.GetCurrentMontage"));
 		Offsets::GetAnimInstanceFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.SkeletalMeshComponent.GetAnimInstance"));
@@ -717,85 +719,81 @@ namespace Core
 
 		else if (bIsInGame)
 		{
-			if (Object == Pawn)
+			if (Object == Pawn && Function == Offsets::PlayerPawnAthenaTickFunc)
 			{
-				std::string FuncName = Function->GetName();
-				if (FuncName.find("Tick") != std::string::npos) //should we skCrypt "Tick" ? idk
+				if (RiftAutomationUtils::WantsToSprint(Controller))
+					RiftAutomationUtils::SetCurrentMovementStyle(Pawn, 3);
+				else
+					RiftAutomationUtils::SetCurrentMovementStyle(Pawn, 0);
+
+				if (CurrentEmote)
 				{
-					if (RiftAutomationUtils::WantsToSprint(Controller))
-						RiftAutomationUtils::SetCurrentMovementStyle(Pawn, 3);
-					else
-						RiftAutomationUtils::SetCurrentMovementStyle(Pawn, 0);
-
-					if (CurrentEmote)
-					{
-						UE4::FVector PawnPos = RiftAutomationUtils::GetActorLocation(Pawn);
-						float Xdif = PawnPos.X - CurrentEmotePositon.X;
-						float Ydif = PawnPos.Y - CurrentEmotePositon.Y;
-						if (Xdif > 75 || Xdif < -75 || Ydif > 75 || Ydif < -75)
-							RiftAutomationUtils::StopEmoting();
-
-						bool IsPlayerFalling = RiftAutomationUtils::IsFalling(CharacterMovement);
-						if (IsPlayerFalling)
-						{
-							RiftAutomationUtils::StopEmoting();
-						}
-					}
-
-					if (GetAsyncKeyState(VK_SPACE) & 0x8000)
-					{
-						if (StopHoldingKey == false)
-						{
-							StopHoldingKey = true;
-
-							if (RiftAutomationUtils::IsSkydiving(Pawn))
-							{
-								if (RiftAutomationUtils::IsSkydiving(Pawn) && !RiftAutomationUtils::IsParachuteOpen(Pawn) && !RiftAutomationUtils::IsParachuteForcedOpen(Pawn))
-								{
-									RiftAutomationUtils::SetMovementMode(CharacterMovement, 6, 3U);
-								}
-
-								else if (RiftAutomationUtils::IsParachuteOpen(Pawn) && !RiftAutomationUtils::IsParachuteForcedOpen(Pawn))
-								{
-									RiftAutomationUtils::SetMovementMode(CharacterMovement, 6, 4U);
-								}
-
-								RiftAutomationUtils::OnRep_IsParachuteOpen(Pawn, RiftAutomationUtils::IsParachuteOpen(Pawn));
-							}
-							else
-							{
-								if (CurrentEmote)
-									RiftAutomationUtils::StopEmoting();
-
-								RiftAutomationUtils::Jump(Pawn);
-							}
-						}
-					}
-
-					else if (GetAsyncKeyState(VK_F1) & 0x8000)
-					{
-						if (StopHoldingKey == false)
-						{
-							StopHoldingKey = true;
-							UE4::FVector PawnPos = RiftAutomationUtils::GetActorLocation(Pawn);
-							if (PawnPos.Z < 25000)
-							{
-								RiftAutomationUtils::StopEmoting();
-								RiftAutomationUtils::TeleportToSkyDive(Pawn, 100000);
-							}
-						}
-					}
-
-					else if (GetAsyncKeyState(VK_F5) & 0x8000)
-					{
-						bIsInGame = false;
+					UE4::FVector PawnPos = RiftAutomationUtils::GetActorLocation(Pawn);
+					float Xdif = PawnPos.X - CurrentEmotePositon.X;
+					float Ydif = PawnPos.Y - CurrentEmotePositon.Y;
+					if (Xdif > 75 || Xdif < -75 || Ydif > 75 || Ydif < -75)
 						RiftAutomationUtils::StopEmoting();
-						RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), skCrypt("Frontend"));
-					}
 
-					else
-						StopHoldingKey = false;
+					bool IsPlayerFalling = RiftAutomationUtils::IsFalling(CharacterMovement);
+					if (IsPlayerFalling)
+					{
+						RiftAutomationUtils::StopEmoting();
+					}
 				}
+
+				if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+				{
+					if (StopHoldingKey == false)
+					{
+						StopHoldingKey = true;
+
+						if (RiftAutomationUtils::IsSkydiving(Pawn))
+						{
+							if (RiftAutomationUtils::IsSkydiving(Pawn) && !RiftAutomationUtils::IsParachuteOpen(Pawn) && !RiftAutomationUtils::IsParachuteForcedOpen(Pawn))
+							{
+								RiftAutomationUtils::SetMovementMode(CharacterMovement, 6, 3U);
+							}
+
+							else if (RiftAutomationUtils::IsParachuteOpen(Pawn) && !RiftAutomationUtils::IsParachuteForcedOpen(Pawn))
+							{
+								RiftAutomationUtils::SetMovementMode(CharacterMovement, 6, 4U);
+							}
+
+							RiftAutomationUtils::OnRep_IsParachuteOpen(Pawn, RiftAutomationUtils::IsParachuteOpen(Pawn));
+						}
+						else
+						{
+							if (CurrentEmote)
+								RiftAutomationUtils::StopEmoting();
+
+							RiftAutomationUtils::Jump(Pawn);
+						}
+					}
+				}
+
+				else if (GetAsyncKeyState(VK_F1) & 0x8000)
+				{
+					if (StopHoldingKey == false)
+					{
+						StopHoldingKey = true;
+						UE4::FVector PawnPos = RiftAutomationUtils::GetActorLocation(Pawn);
+						if (PawnPos.Z < 25000)
+						{
+							RiftAutomationUtils::StopEmoting();
+							RiftAutomationUtils::TeleportToSkyDive(Pawn, 100000);
+						}
+					}
+				}
+
+				else if (GetAsyncKeyState(VK_F5) & 0x8000)
+				{
+					bIsInGame = false;
+					RiftAutomationUtils::StopEmoting();
+					RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), skCrypt("Frontend"));
+				}
+
+				else
+					StopHoldingKey = false;
 			}
 		}
 		return ProcessEvent(Object, Function, Params);
