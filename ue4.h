@@ -18,6 +18,7 @@ namespace UE4
     uintptr_t SprintPatchAddr;
     uintptr_t WeaponPatchAddr;
     uintptr_t PlayEmoteItemInternalAddr;
+    uintptr_t CrouchAddr;
 
     template<class T>
     struct TArray

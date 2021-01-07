@@ -44,3 +44,5 @@
 
 //we hook this for emoting
 #define PLAYEMOTEITEM_PATTERN "48 85 D2 0F 84 ? ? ? ? 48 89 74 24 20 57 48 83 EC 50"
+
+#define CROUCH_PATTERN "40 53 48 83 EC 20 48 83 B9 ? ? ? ? 00 48 8B D9 74 ? 48 8B 01 FF 90 ? ? ? ? 84 C0 74 ? 48 8B 83"

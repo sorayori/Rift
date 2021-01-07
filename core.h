@@ -51,6 +51,8 @@ namespace Core
 		UE4::UObject* Default__FortItemAndVariantSwapHelpers;
 		UE4::UObject* Default__FortRuntimeOptions;
 
+		UE4::UObject* UnCrouchFunc;
+		UE4::UObject* CrouchFunc;
 		UE4::UObject* GetRuntimeOptionsFunc;
 		UE4::UObject* PlayerPawnAthenaTickFunc;
 		UE4::UObject* IsFallingFunc;
@@ -511,6 +513,10 @@ namespace Core
 			return *reinterpret_cast<int*>(__int64(InFortRuntimeOptions) + __int64(Offsets::MaxNumItemsInCreativeChestsOffset));
 		}
 
+		static void UnCrouch(UE4::UObject* InCharacter, bool ClientSimulation = false)
+		{
+			UE4::ProcessEvent(InCharacter, Offsets::UnCrouchFunc, &ClientSimulation, 0);
+		}
 	};
 
 	static void ExecutePatches()
@@ -576,6 +582,8 @@ namespace Core
 		Offsets::Default__FortItemAndVariantSwapHelpers = GlobalObjects->FindObjectByFullName(skCrypt("FortItemAndVariantSwapHelpers /Script/FortniteGame.Default__FortItemAndVariantSwapHelpers"));
 		Offsets::Default__FortRuntimeOptions = GlobalObjects->FindObjectByFullName(skCrypt("FortRuntimeOptions /Script/FortniteGame.Default__FortRuntimeOptions"));
 
+		Offsets::UnCrouchFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.Character.UnCrouch"));
+		Offsets::CrouchFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.Character.Crouch"));
 		Offsets::GetRuntimeOptionsFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortRuntimeOptions.GetRuntimeOptions"));
 		Offsets::PlayerPawnAthenaTickFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Game/Athena/PlayerPawn_Athena.PlayerPawn_Athena_C.ReceiveTick"));
 		Offsets::IsFallingFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/Engine.NavMovementComponent.IsFalling"));
@@ -715,6 +723,19 @@ namespace Core
 		bIsInGame = true;  //Figure out a way to do this as loading screen drops.
 	}
 
+
+	typedef void(__fastcall* fCrouchInternal)(UE4::UObject*, bool);
+	static fCrouchInternal CrouchInternal;
+
+	static void CrouchInternalHook(UE4::UObject* InCharacter, bool bClientSimulation)
+	{
+		if (bIsInGame && CurrentEmote)
+		{
+			return;
+		}
+		return CrouchInternal(InCharacter, bClientSimulation);
+	}
+
 	typedef void (__fastcall* fPlayEmoteItemInternal)(UE4::UObject*, UE4::UObject*, uint8_t);
 	static fPlayEmoteItemInternal PlayEmoteItemInternal;
 
@@ -733,6 +754,7 @@ namespace Core
 					UE4::FVector PlayerPos = RiftAutomationUtils::GetActorLocation(Pawn);
 					CurrentEmotePositon = PlayerPos;
 					RiftAutomationUtils::PlayLocalAnimMontage(Pawn, CurrentEmote);
+					RiftAutomationUtils::UnCrouch(Pawn);
 				}
 			}
 		}
@@ -811,7 +833,7 @@ namespace Core
 					UE4::FVector PawnPos = RiftAutomationUtils::GetActorLocation(Pawn);
 					float Xdif = PawnPos.X - CurrentEmotePositon.X;
 					float Ydif = PawnPos.Y - CurrentEmotePositon.Y;
-					if (Xdif > 75 || Xdif < -75 || Ydif > 75 || Ydif < -75)
+					if (Xdif > 70 || Xdif < -70 || Ydif > 70 || Ydif < -70)
 						RiftAutomationUtils::StopEmoting();
 
 					bool IsPlayerFalling = RiftAutomationUtils::IsFalling(CharacterMovement);
@@ -820,6 +842,8 @@ namespace Core
 						RiftAutomationUtils::StopEmoting();
 					}
 				}
+
+
 
 				if (GetAsyncKeyState(VK_SPACE) & 0x8000)
 				{
@@ -897,6 +921,15 @@ namespace Core
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)ProcessEvent, ProcessEventHook);
 		DetourAttach(&(PVOID&)PlayEmoteItemInternal, PlayEmoteItemHook);
+
+		if (UE4::CrouchAddr)
+		{
+			CrouchInternal = (fCrouchInternal)(UE4::CrouchAddr);
+			DetourAttach(&(PVOID&)CrouchInternal, CrouchInternalHook);
+		}
+		else
+			DEBUG_LOG("Crouch address is null, emote crouch bug will be in effect.");
+
 		DetourTransactionCommit();
 		CreateThread(0, 0, RiftPlayerPawnTick, 0, 0, 0);
 
@@ -950,6 +983,7 @@ namespace Core
 		UE4::SprintPatchAddr = Memory::FindPattern(skCrypt(SPRINTPATCH_PATTERN));
 		UE4::WeaponPatchAddr = Memory::FindPattern(skCrypt(WEAPONPATCH_PATTERN));
 		UE4::PlayEmoteItemInternalAddr = Memory::FindPattern(skCrypt(PLAYEMOTEITEM_PATTERN));
+		UE4::CrouchAddr = Memory::FindPattern(skCrypt(CROUCH_PATTERN)); //Not essential for for core gameplay, dont worry if failed to find
 
 		if (!UE4::GObjectsAddr || !UE4::FreeAddr || !UE4::GetObjNameAddr || !UE4::GetFirstPlayerControllerAddr || !UE4::ProcessEventAddr || !UE4::StaticConstructObject_InternalAddr || !GWorld || !UE4::GetNameByIndexAddr || !UE4::SprintPatchAddr || !UE4::WeaponPatchAddr)
 		{
