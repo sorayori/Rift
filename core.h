@@ -715,8 +715,6 @@ namespace Core
 		bIsInGame = true;  //Figure out a way to do this as loading screen drops.
 	}
 
-	bool StopHoldingKey = false;
-
 	typedef void (__fastcall* fPlayEmoteItemInternal)(UE4::UObject*, UE4::UObject*, uint8_t);
 	static fPlayEmoteItemInternal PlayEmoteItemInternal;
 
@@ -743,6 +741,9 @@ namespace Core
 
 	typedef void* (__fastcall* fProcessEvent)(UE4::UObject* Object, UE4::UObject* Function, void* Params);
 	static fProcessEvent ProcessEvent;
+
+	bool ShouldOpenParachute = false;
+	bool ShouldCloseParachute = false;
 
 	static void* ProcessEventHook(UE4::UObject* Object, UE4::UObject* Function, void* Params)
 	{
@@ -777,9 +778,28 @@ namespace Core
 			}
 		}
 
-		else if (bIsInGame)
+		if (ShouldOpenParachute)
 		{
-			if (Object == Pawn && Function == Offsets::PlayerPawnAthenaTickFunc)
+			ShouldOpenParachute = false;
+			RiftAutomationUtils::SetMovementMode(CharacterMovement, 6, 3U);
+		}
+
+		if (ShouldCloseParachute)
+		{
+			ShouldCloseParachute = false;
+			RiftAutomationUtils::SetMovementMode(CharacterMovement, 6, 4U);
+		}
+
+		return ProcessEvent(Object, Function, Params);
+	}
+
+	bool StopHoldingKey = false;
+
+	DWORD RiftPlayerPawnTick(LPVOID lpParam)
+	{
+		while (true)
+		{
+			if (bIsInGame)
 			{
 				if (RiftAutomationUtils::WantsToSprint(Controller))
 					RiftAutomationUtils::SetCurrentMovementStyle(Pawn, 3);
@@ -807,19 +827,16 @@ namespace Core
 					{
 						StopHoldingKey = true;
 
-						if (RiftAutomationUtils::IsSkydiving(Pawn))
+						bool bIsSkydiving = RiftAutomationUtils::IsSkydiving(Pawn);
+						bool bIsParachuteOpen = RiftAutomationUtils::IsParachuteOpen(Pawn);
+						bool bIsParachuteForcedOpen = RiftAutomationUtils::IsParachuteForcedOpen(Pawn);
+						if (bIsSkydiving && !ShouldOpenParachute && !ShouldCloseParachute)
 						{
-							if (RiftAutomationUtils::IsSkydiving(Pawn) && !RiftAutomationUtils::IsParachuteOpen(Pawn) && !RiftAutomationUtils::IsParachuteForcedOpen(Pawn))
-							{
-								RiftAutomationUtils::SetMovementMode(CharacterMovement, 6, 3U);
-							}
+							if (bIsSkydiving && !bIsParachuteOpen && !bIsParachuteForcedOpen)
+								ShouldOpenParachute = true;
 
-							else if (RiftAutomationUtils::IsParachuteOpen(Pawn) && !RiftAutomationUtils::IsParachuteForcedOpen(Pawn))
-							{
-								RiftAutomationUtils::SetMovementMode(CharacterMovement, 6, 4U);
-							}
-
-							RiftAutomationUtils::OnRep_IsParachuteOpen(Pawn, RiftAutomationUtils::IsParachuteOpen(Pawn));
+							else if (bIsParachuteOpen && !bIsParachuteForcedOpen)
+								ShouldCloseParachute = true;
 						}
 						else
 						{
@@ -847,16 +864,20 @@ namespace Core
 
 				else if (GetAsyncKeyState(VK_F5) & 0x8000)
 				{
-					bIsInGame = false;
-					RiftAutomationUtils::StopEmoting();
-					RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), skCrypt("Frontend"));
+					if (StopHoldingKey == false)
+					{
+						StopHoldingKey = true;
+						bIsInGame = false;
+						RiftAutomationUtils::StopEmoting();
+						RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), skCrypt("Frontend"));
+					}
 				}
 
 				else
 					StopHoldingKey = false;
 			}
+			Sleep(1000 / 60);
 		}
-		return ProcessEvent(Object, Function, Params);
 	}
 
 	static bool PostInit()
@@ -872,6 +893,7 @@ namespace Core
 		DetourAttach(&(PVOID&)ProcessEvent, ProcessEventHook);
 		DetourAttach(&(PVOID&)PlayEmoteItemInternal, PlayEmoteItemHook);
 		DetourTransactionCommit();
+		CreateThread(0, 0, RiftPlayerPawnTick, 0, 0, 0);
 
 		return true;
 	};
