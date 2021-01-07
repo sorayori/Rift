@@ -853,11 +853,16 @@ namespace Core
 					if (StopHoldingKey == false)
 					{
 						StopHoldingKey = true;
-						UE4::FVector PawnPos = RiftAutomationUtils::GetActorLocation(Pawn);
-						if (PawnPos.Z < 25000)
+
+						bool bIsSkydiving = RiftAutomationUtils::IsSkydiving(Pawn);
+						if (!bIsSkydiving) //Game crashes if you have glider out and call TeleportToSkyDive, might aswell have it so this keybind only works when your on the ground.
 						{
-							RiftAutomationUtils::StopEmoting();
-							RiftAutomationUtils::TeleportToSkyDive(Pawn, 100000);
+							UE4::FVector PawnPos = RiftAutomationUtils::GetActorLocation(Pawn);
+							if (PawnPos.Z < 25000)
+							{
+								RiftAutomationUtils::StopEmoting();
+								RiftAutomationUtils::TeleportToSkyDive(Pawn, 100000);
+							}
 						}
 					}
 				}
