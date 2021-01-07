@@ -833,7 +833,7 @@ namespace Core
 					UE4::FVector PawnPos = RiftAutomationUtils::GetActorLocation(Pawn);
 					float Xdif = PawnPos.X - CurrentEmotePositon.X;
 					float Ydif = PawnPos.Y - CurrentEmotePositon.Y;
-					if (Xdif > 70 || Xdif < -70 || Ydif > 70 || Ydif < -70)
+					if (Xdif > 75 || Xdif < -75 || Ydif > 75 || Ydif < -75)
 						RiftAutomationUtils::StopEmoting();
 
 					bool IsPlayerFalling = RiftAutomationUtils::IsFalling(CharacterMovement);
