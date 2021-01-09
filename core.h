@@ -525,12 +525,12 @@ namespace Core
 	public:
 		static void WatchNewYears()
 		{
-			auto NYETimer = GlobalObjects->FindObjectByFullName("BP_NewYearTimer_C /NewYears/Levels/Apollo_NYE_Celebration.Apollo_NYE_Celebration.PersistentLevel.BP_NewYearTimer_2");
+			auto NYETimer = GlobalObjects->FindObjectByFullName(skCrypt("BP_NewYearTimer_C /NewYears/Levels/Apollo_NYE_Celebration.Apollo_NYE_Celebration.PersistentLevel.BP_NewYearTimer_2"));
 
 			if (NYETimer)
 			{
-				auto InitializeLevel = GlobalObjects->FindObjectByFullName("Function /NewYears/Blueprints/BP_NewYearTimer.BP_NewYearTimer_C.InitializeLevel");
-				auto StartNYE = GlobalObjects->FindObjectByFullName("Function /NewYears/Blueprints/BP_NewYearTimer.BP_NewYearTimer_C.startNYE");
+				auto InitializeLevel = GlobalObjects->FindObjectByFullName(skCrypt("Function /NewYears/Blueprints/BP_NewYearTimer.BP_NewYearTimer_C.InitializeLevel"));
+				auto StartNYE = GlobalObjects->FindObjectByFullName(skCrypt("Function /NewYears/Blueprints/BP_NewYearTimer.BP_NewYearTimer_C.startNYE"));
 
 				UE4::ProcessEvent(NYETimer, InitializeLevel, nullptr, 0);
 				UE4::ProcessEvent(NYETimer, StartNYE, nullptr, 0);
@@ -686,11 +686,15 @@ namespace Core
 		RiftAutomationUtils::JumpToSafeZonePhase(GameMode);
 		DEBUG_LOG("JumpToSafeZonePhase\n");
 
+		/*
 		RiftAutomationUtils::OverridePawnCosmetic(Pawn, skCrypt("AthenaCharacterItemDefinition /Game/Heroes/Commando/CosmeticCharacterItemDefinitions/CID_Commando_016_F_V1.CID_Commando_016_F_V1"));
 		DEBUG_LOG("OverridePawnCosmetic\n");
+		*/
 
 		std::string AccountName = RiftAutomationUtils::GetAccountName();
 		DEBUG_LOG("Player Name: %s\n", AccountName.c_str());
+
+		/*
 		nlohmann::json PlayerLoadout = GetLoadoutFromAPI(AccountName);
 
 		bool DoesGliderExist = !(PlayerLoadout["glider"].is_null());
@@ -717,7 +721,6 @@ namespace Core
 			else
 				DEBUG_LOG("Invalid WeaponDefinition grabbed from AGID!");
 		}
-
 		bool DoesContrailExist = !(PlayerLoadout["contrail"].is_null());
 		if (DoesContrailExist)
 		{
@@ -726,6 +729,7 @@ namespace Core
 			DEBUG_LOG(ContrailName.c_str());
 			RiftAutomationUtils::OverridePawnCosmetic(Pawn, ContrailName.c_str(), true);
 		}
+		*/
 
 		RiftAutomationUtils::TeleportToSkyDive(Pawn, 100000);
 		DEBUG_LOG("TeleportToSkyDive\n");
@@ -747,9 +751,6 @@ namespace Core
 
 		//RiftAutomationUtils::EquipWeapon(Pawn, skCrypt("FortWeaponMeleeItemDefinition /Mantis/Items/UncleBrolly/WID_UncleBrolly_VR.WID_UncleBrolly_VR"));
 		DEBUG_LOG("EquipWeapon\n");
-
-		RiftEventUtils::WatchNewYears();
-		DEBUG_LOG("NewYears\n");
 
 		ExecutePatches();
 		bIsInGame = true;  //Figure out a way to do this as loading screen drops.
@@ -948,11 +949,17 @@ namespace Core
 		GetOffsets();
 
 		ProcessEvent = (fProcessEvent)(UE4::ProcessEventAddr);
-		PlayEmoteItemInternal = (fPlayEmoteItemInternal)(UE4::PlayEmoteItemInternalAddr);
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)ProcessEvent, ProcessEventHook);
-		DetourAttach(&(PVOID&)PlayEmoteItemInternal, PlayEmoteItemHook);
+
+		if (UE4::PlayEmoteItemInternalAddr)
+		{
+			PlayEmoteItemInternal = (fPlayEmoteItemInternal)(UE4::PlayEmoteItemInternalAddr);
+			DetourAttach(&(PVOID&)PlayEmoteItemInternal, PlayEmoteItemHook);
+		}
+		else
+			DEBUG_LOG("PlayEmoteItem address is null, emoting will no longer work.");
 
 		if (UE4::CrouchAddr)
 		{
@@ -1002,7 +1009,10 @@ namespace Core
 
 	static bool Init()
 	{
-		GWorld = reinterpret_cast<UE4::UObject**>(Memory::FindPattern(skCrypt(GWORLD_PATTERN), true, 3));
+		GWorld = reinterpret_cast<UE4::UObject**>(Memory::FindPattern(skCrypt(GWORLD_PATTERN_ONE), true, 3));
+		if (!GWorld)
+			GWorld = reinterpret_cast<UE4::UObject**>(Memory::FindPattern(skCrypt(GWORLD_PATTERN_TWO), true, 3));
+
 		UE4::GObjectsAddr = Memory::FindPattern(skCrypt(GOBJECT_PATTERN), true, 10);
 		UE4::FreeAddr = Memory::FindPattern(skCrypt(FMEMORYFREE_PATTERN));
 		UE4::GetObjNameAddr = Memory::FindPattern(skCrypt(GETOBJNAME_PATTERN));
@@ -1020,25 +1030,27 @@ namespace Core
 		if (!UE4::GObjectsAddr || !UE4::FreeAddr || !UE4::GetObjNameAddr || !UE4::GetFirstPlayerControllerAddr || !UE4::ProcessEventAddr || !UE4::StaticConstructObject_InternalAddr || !GWorld || !UE4::GetNameByIndexAddr)
 		{
 			if (!UE4::GObjectsAddr)
-				DEBUG_LOG("Failed to find GObjects.");
+				DEBUG_LOG("Failed to find GObjects.\n");
 			if (!UE4::FreeAddr)
-				DEBUG_LOG("Failed to find Free.");
+				DEBUG_LOG("Failed to find Free.\n");
 			if (!UE4::GetObjNameAddr)
-				DEBUG_LOG("Failed to find GetObjectName.");
+				DEBUG_LOG("Failed to find GetObjectName.\n");
 			if (!UE4::ProcessEventAddr)
-				DEBUG_LOG("Failed to find ProcessEvent.");
+				DEBUG_LOG("Failed to find ProcessEvent.\n");
 			if (!UE4::StaticConstructObject_InternalAddr)
-				DEBUG_LOG("Failed to find StaticConstructObject_Internal.");
+				DEBUG_LOG("Failed to find StaticConstructObject_Internal.\n");
 			if (!GWorld)
-				DEBUG_LOG("Failed to find GWorld.");
+				DEBUG_LOG("Failed to find GWorld.\n");
 			if (!UE4::GetNameByIndexAddr)
-				DEBUG_LOG("Failed to find GetNameByIndex.");
+				DEBUG_LOG("Failed to find GetNameByIndex.\n");
 
 			DEBUG_LOG("One or more patterns was incorrect.\n");
 			return false;
 		}
 
 		GlobalObjects = reinterpret_cast<UE4::GObjects*>(UE4::GObjectsAddr);
+
+		std::cout << GlobalObjects->GetByIndex(9) << std::endl;
 
 		CreateThread(0, 0, StartupGWorldCheckLoop, 0, 0, 0);
 		return true;

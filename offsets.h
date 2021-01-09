@@ -5,7 +5,10 @@
 // Before messing with this, please remember to follow the EXACT format, any mistakes will break everything.
 
 // UWorld* GWorld
-#define GWORLD_PATTERN "48 89 05 ? ? ? ? 48 8B B6 ? ? ? ?"  // (+ 0x3)
+#define GWORLD_PATTERN_ONE "48 89 05 ? ? ? ? 48 8B B6 ? ? ? ?"  // (+ 0x3)
+
+// UWorld* GWorld  (based on travis scott)
+#define GWORLD_PATTERN_TWO "48 8B 1D ? ? ? ? 48 85 DB 74 3B 41"  // (+ 0x3)
 
 // FUObjectArray
 #define GOBJECT_PATTERN "49 63 C8 48 8D 14 40 48 8B 05 ? ? ? ? 48 8B 0C C8 48 8D 04 D1" // (+ 0xA)
