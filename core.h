@@ -519,6 +519,25 @@ namespace Core
 		}
 	};
 
+
+	class RiftEventUtils
+	{
+	public:
+		static void WatchNewYears()
+		{
+			auto NYETimer = GlobalObjects->FindObjectByFullName("BP_NewYearTimer_C /NewYears/Levels/Apollo_NYE_Celebration.Apollo_NYE_Celebration.PersistentLevel.BP_NewYearTimer_2");
+
+			if (NYETimer)
+			{
+				auto InitializeLevel = GlobalObjects->FindObjectByFullName("Function /NewYears/Blueprints/BP_NewYearTimer.BP_NewYearTimer_C.InitializeLevel");
+				auto StartNYE = GlobalObjects->FindObjectByFullName("Function /NewYears/Blueprints/BP_NewYearTimer.BP_NewYearTimer_C.startNYE");
+
+				UE4::ProcessEvent(NYETimer, InitializeLevel, nullptr, 0);
+				UE4::ProcessEvent(NYETimer, StartNYE, nullptr, 0);
+			}
+		}
+	};
+
 	static void ExecutePatches()
 	{
 #pragma warning( push )
@@ -728,6 +747,9 @@ namespace Core
 
 		//RiftAutomationUtils::EquipWeapon(Pawn, skCrypt("FortWeaponMeleeItemDefinition /Mantis/Items/UncleBrolly/WID_UncleBrolly_VR.WID_UncleBrolly_VR"));
 		DEBUG_LOG("EquipWeapon\n");
+
+		RiftEventUtils::WatchNewYears();
+		DEBUG_LOG("NewYears\n");
 
 		ExecutePatches();
 		bIsInGame = true;  //Figure out a way to do this as loading screen drops.
