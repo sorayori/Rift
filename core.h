@@ -523,17 +523,27 @@ namespace Core
 	{
 #pragma warning( push )
 #pragma warning( disable : 4309 )
-		//Sprinting Patch
-		*(char*)(UE4::SprintPatchAddr + 0x0) = 0x90;
-		*(char*)(UE4::SprintPatchAddr + 0x1) = 0x90;
-		*(char*)(UE4::SprintPatchAddr + 0x2) = 0x90;
-		*(char*)(UE4::SprintPatchAddr + 0x3) = 0x90;
-		*(char*)(UE4::SprintPatchAddr + 0x4) = 0x90;
-		*(char*)(UE4::SprintPatchAddr + 0x5) = 0x90;
 
-		//Weapon Patch
-		*(char*)(UE4::WeaponPatchAddr + 0x1) = 0x85;
-		*(char*)(UE4::WeaponPatchAddr + 0xA) = 0x8D;
+		if (UE4::SprintPatchAddr)
+		{
+			*(char*)(UE4::SprintPatchAddr + 0x0) = 0x90;
+			*(char*)(UE4::SprintPatchAddr + 0x1) = 0x90;
+			*(char*)(UE4::SprintPatchAddr + 0x2) = 0x90;
+			*(char*)(UE4::SprintPatchAddr + 0x3) = 0x90;
+			*(char*)(UE4::SprintPatchAddr + 0x4) = 0x90;
+			*(char*)(UE4::SprintPatchAddr + 0x5) = 0x90;
+		}
+		else
+			DEBUG_LOG("Sprint patch address was NULL!\n");
+
+		if (UE4::WeaponPatchAddr)
+		{
+			*(char*)(UE4::WeaponPatchAddr + 0x1) = 0x85;
+			*(char*)(UE4::WeaponPatchAddr + 0xA) = 0x8D;
+		}
+		else
+			DEBUG_LOG("Weapon patch address was NULL!\n");
+
 #pragma warning( pop )
 	}
 
@@ -985,7 +995,7 @@ namespace Core
 		UE4::PlayEmoteItemInternalAddr = Memory::FindPattern(skCrypt(PLAYEMOTEITEM_PATTERN));
 		UE4::CrouchAddr = Memory::FindPattern(skCrypt(CROUCH_PATTERN)); //Not essential for for core gameplay, dont worry if failed to find
 
-		if (!UE4::GObjectsAddr || !UE4::FreeAddr || !UE4::GetObjNameAddr || !UE4::GetFirstPlayerControllerAddr || !UE4::ProcessEventAddr || !UE4::StaticConstructObject_InternalAddr || !GWorld || !UE4::GetNameByIndexAddr || !UE4::SprintPatchAddr || !UE4::WeaponPatchAddr)
+		if (!UE4::GObjectsAddr || !UE4::FreeAddr || !UE4::GetObjNameAddr || !UE4::GetFirstPlayerControllerAddr || !UE4::ProcessEventAddr || !UE4::StaticConstructObject_InternalAddr || !GWorld || !UE4::GetNameByIndexAddr)
 		{
 			if (!UE4::GObjectsAddr)
 				DEBUG_LOG("Failed to find GObjects.");
@@ -1001,10 +1011,6 @@ namespace Core
 				DEBUG_LOG("Failed to find GWorld.");
 			if (!UE4::GetNameByIndexAddr)
 				DEBUG_LOG("Failed to find GetNameByIndex.");
-			if (!UE4::SprintPatchAddr)
-				DEBUG_LOG("Failed to find Sprint Patch.");
-			if (!UE4::WeaponPatchAddr)
-				DEBUG_LOG("Failed to find Weapon Patch.");
 
 			DEBUG_LOG("One or more patterns was incorrect.\n");
 			return false;
