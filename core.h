@@ -525,12 +525,12 @@ namespace Core
 	public:
 		static void WatchNewYears()
 		{
-			auto NYETimer = GlobalObjects->FindObjectByFullName("BP_NewYearTimer_C /NewYears/Levels/Apollo_NYE_Celebration.Apollo_NYE_Celebration.PersistentLevel.BP_NewYearTimer_2");
+			auto NYETimer = GlobalObjects->FindObjectByFullName(skCrypt("BP_NewYearTimer_C /NewYears/Levels/Apollo_NYE_Celebration.Apollo_NYE_Celebration.PersistentLevel.BP_NewYearTimer_2"));
 
 			if (NYETimer)
 			{
-				auto InitializeLevel = GlobalObjects->FindObjectByFullName("Function /NewYears/Blueprints/BP_NewYearTimer.BP_NewYearTimer_C.InitializeLevel");
-				auto StartNYE = GlobalObjects->FindObjectByFullName("Function /NewYears/Blueprints/BP_NewYearTimer.BP_NewYearTimer_C.startNYE");
+				auto InitializeLevel = GlobalObjects->FindObjectByFullName(skCrypt("Function /NewYears/Blueprints/BP_NewYearTimer.BP_NewYearTimer_C.InitializeLevel"));
+				auto StartNYE = GlobalObjects->FindObjectByFullName(skCrypt("Function /NewYears/Blueprints/BP_NewYearTimer.BP_NewYearTimer_C.startNYE"));
 
 				UE4::ProcessEvent(NYETimer, InitializeLevel, nullptr, 0);
 				UE4::ProcessEvent(NYETimer, StartNYE, nullptr, 0);
