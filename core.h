@@ -901,7 +901,7 @@ namespace Core
 					}
 				}
 
-				else if (GetAsyncKeyState(VK_F2) & 0x8000)
+				else if (GetAsyncKeyState(VK_F3) & 0x8000)
 				{
 					if (StopHoldingKey == false)
 					{
