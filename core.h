@@ -517,6 +517,33 @@ namespace Core
 		{
 			UE4::ProcessEvent(InCharacter, Offsets::UnCrouchFunc, &ClientSimulation, 0);
 		}
+
+		static void SetDefaultCharacterParts(UE4::UObject* InFortPlayerState)
+		{
+			UE4::UObject* DefaultHead = GlobalObjects->FindObjectByFullName(skCrypt("CustomCharacterPart /Game/Characters/CharacterParts/Female/Medium/Heads/CP_Head_F_RebirthDefaultA.CP_Head_F_RebirthDefaultA"));
+			UE4::UObject* DefaultBody = GlobalObjects->FindObjectByFullName(skCrypt("CustomCharacterPart /Game/Athena/Heroes/Meshes/Bodies/CP_Body_Commando_F_RebirthDefaultA.CP_Body_Commando_F_RebirthDefaultA"));
+		
+			DWORD CharacterDataOffset = GlobalObjects->FindOffset(skCrypt("FortPlayerState"), skCrypt("CharacterData"));
+			DWORD PartsOffset = GlobalObjects->FindOffset(skCrypt("CustomCharacterData"), skCrypt("Parts"));
+
+			if (CharacterDataOffset && PartsOffset && DefaultHead && DefaultBody)
+			{
+				DEBUG_LOG("Needed parts for Character Parts aren't null!");
+
+				UE4::UObject** HeadPart = reinterpret_cast<UE4::UObject**>(__int64(InFortPlayerState) + __int64(CharacterDataOffset) + __int64(PartsOffset));
+				UE4::UObject** BodyPart = reinterpret_cast<UE4::UObject**>(__int64(InFortPlayerState) + __int64(CharacterDataOffset) + __int64(PartsOffset) + __int64(8));
+				*HeadPart = DefaultHead;
+				*BodyPart = DefaultBody;
+
+				UE4::UObject* OnRep_CharacterDataFunc = GlobalObjects->FindObjectByFullName(skCrypt("Function /Script/FortniteGame.FortPlayerState.OnRep_CharacterData"));
+
+				if (OnRep_CharacterDataFunc)
+				{
+					DEBUG_LOG("OnRep_CharacterData called!");
+					UE4::ProcessEvent(InFortPlayerState, OnRep_CharacterDataFunc, nullptr, 0);
+				}
+			}
+		}
 	};
 
 
@@ -549,7 +576,7 @@ namespace Core
 				bool JerkyCondition = true;
 
 				UE4::ProcessEvent(JerkyLoader, LoadJerkyLevel, &JerkyCondition, 0);
-				UE4::ProcessEvent(JerkyLoader, CallStartEventOnScripting, CallStartEventOnScripting, 0);
+				UE4::ProcessEvent(JerkyLoader, CallStartEventOnScripting, nullptr, 0);
 			}
 		}
 	};
@@ -746,6 +773,9 @@ namespace Core
 			RiftAutomationUtils::OverridePawnCosmetic(Pawn, ContrailName.c_str(), true);
 		}
 		*/
+
+		RiftAutomationUtils::SetDefaultCharacterParts(PlayerState);
+		DEBUG_LOG("SetDefaultCharacterParts\n");
 
 		RiftAutomationUtils::TeleportToSkyDive(Pawn, 100000);
 		DEBUG_LOG("TeleportToSkyDive\n");
