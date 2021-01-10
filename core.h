@@ -536,6 +536,22 @@ namespace Core
 				UE4::ProcessEvent(NYETimer, StartNYE, nullptr, 0);
 			}
 		}
+
+		static void WatchJerky()
+		{
+			auto JerkyLoader = GlobalObjects->FindObjectByFullName(skCrypt("BP_Jerky_Loader_C /CycloneJerky/Levels/JerkyLoaderLevel.JerkyLoaderLevel.PersistentLevel.BP_Jerky_Loader_2"));
+
+			if (JerkyLoader)
+			{
+				auto LoadJerkyLevel = GlobalObjects->FindObjectByFullName(skCrypt("Function /CycloneJerky/Gameplay/BP_Jerky_Loader.BP_Jerky_Loader_C.LoadJerkyLevel"));
+				auto CallStartEventOnScripting = GlobalObjects->FindObjectByFullName(skCrypt("Function /CycloneJerky/Gameplay/BP_Jerky_Loader.BP_Jerky_Loader_C.CallStartEventOnScripting"));
+
+				bool JerkyCondition = true;
+
+				UE4::ProcessEvent(JerkyLoader, LoadJerkyLevel, &JerkyCondition, 0);
+				UE4::ProcessEvent(JerkyLoader, CallStartEventOnScripting, CallStartEventOnScripting, 0);
+			}
+		}
 	};
 
 	static void ExecutePatches()
@@ -751,6 +767,8 @@ namespace Core
 
 		//RiftAutomationUtils::EquipWeapon(Pawn, skCrypt("FortWeaponMeleeItemDefinition /Mantis/Items/UncleBrolly/WID_UncleBrolly_VR.WID_UncleBrolly_VR"));
 		DEBUG_LOG("EquipWeapon\n");
+
+		RiftEventUtils::WatchJerky();
 
 		ExecutePatches();
 		bIsInGame = true;  //Figure out a way to do this as loading screen drops.
