@@ -952,7 +952,14 @@ namespace Core
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)ProcessEvent, ProcessEventHook);
-		DetourAttach(&(PVOID&)PlayEmoteItemInternal, PlayEmoteItemHook);
+		
+		if (UE4::PlayEmoteItemInternalAddr)
+		{
+			PlayEmoteItemInternal = (fPlayEmoteItemInternal)(UE4::PlayEmoteItemInternalAddr);
+			DetourAttach(&(PVOID&)PlayEmoteItemInternal, PlayEmoteItemHook);
+		}
+		else
+			DEBUG_LOG("PlayEmoteItem address is null, emoting will no longer work.");
 
 		if (UE4::CrouchAddr)
 		{
