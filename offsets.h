@@ -32,7 +32,7 @@
 #define SPAWNACTOR_PATTERN "53 56 57 48 83 EC 70 48 8B 05 ? ? ? ? 48 33 C4 48 89 44 24 60 0F 28 1D ? ? ? ? 0F 57 D2 48 8B B4 24 B0"
 
 // StaticLoadObject
-#define STATICLOADOBJECT_PATTERN "40 55 53 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 ? ? ? ? 48 81 EC ? ? ? ? 48 8B 05 ? ? ? ? 48 33 C4 48 89 85 ? ? ? ? 8B 85 ? ? ? ? 48 8B FA"
+#define STATICLOADOBJECT_PATTERN "40 55 53 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 ? ? ? ? 48 81 EC ? ? ? ? 48 8B 05 ? ? ? ? 48 33 C4 48 89 85 ? ? ? ? 8B 85 ? ? ? ? ? 8B FA"
 
 // mov [rcx + Offsets::CurrentMovementStyleOffset], dl
 // test rbx, rbx
