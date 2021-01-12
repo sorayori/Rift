@@ -44,8 +44,12 @@ namespace Core
 		DWORD CharacterBodyTypeOffset;
 		DWORD MaxNumItemsInCreativeChestsOffset;
 		DWORD DefaultFlagRegionIdOffset;
+		DWORD ControllerPlayerOffset;
+		DWORD LocalPlayerViewportClientOffset;
+		DWORD ViewportConsoleOffset;
 
 		UE4::UObject* CheatManagerClass;
+		UE4::UObject* ConsoleClass;
 
 		UE4::UObject* Default__FortKismetLibrary;
 		UE4::UObject* Default__FortItemAndVariantSwapHelpers;
@@ -517,6 +521,15 @@ namespace Core
 		{
 			UE4::ProcessEvent(InCharacter, Offsets::UnCrouchFunc, &ClientSimulation, 0);
 		}
+		
+		static void UnlockConsole(UE4::UObject* InPlayerController)
+		{
+			UE4::UObject* LocalPlayer = *reinterpret_cast<UE4::UObject**>(__int64(InPlayerController) + __int64(Offsets::ControllerPlayerOffset));
+			UE4::UObject* GameViewport = *reinterpret_cast<UE4::UObject**>(__int64(LocalPlayer) + __int64(Offsets::LocalPlayerViewportClientOffset));
+			UE4::UObject** Console = reinterpret_cast<UE4::UObject**>(__int64(GameViewport) + __int64(Offsets::ViewportConsoleOffset));
+			UE4::UObject* NewConsole = UE4::StaticConstructObject_Internal(Offsets::ConsoleClass, InPlayerController, 0, 0, 0, 0, 0, 0, 0);
+			*Console = NewConsole;
+		}
 	};
 
 
@@ -603,9 +616,12 @@ namespace Core
 		Offsets::CharacterBodyTypeOffset = GlobalObjects->FindOffset(skCrypt("FortPlayerState"), skCrypt("CharacterBodyType"));
 		Offsets::MaxNumItemsInCreativeChestsOffset = GlobalObjects->FindOffset(skCrypt("FortRuntimeOptions"), skCrypt("MaxNumItemsInCreativeChests"));
 		Offsets::DefaultFlagRegionIdOffset = GlobalObjects->FindOffset(skCrypt("FortRuntimeOptions"), skCrypt("DefaultFlagRegionId"));
-
+		Offsets::ControllerPlayerOffset = GlobalObjects->FindOffset(skCrypt("PlayerController"), skCrypt("Player"));
+		Offsets::LocalPlayerViewportClientOffset = GlobalObjects->FindOffset(skCrypt("LocalPlayer"), skCrypt("ViewportClient"));
+		Offsets::ViewportConsoleOffset = GlobalObjects->FindOffset(skCrypt("GameViewportClient"), skCrypt("ViewportConsole"));
 
 		Offsets::CheatManagerClass = GlobalObjects->FindObjectByFullName(skCrypt("Class /Script/Engine.CheatManager"));
+		Offsets::ConsoleClass = GlobalObjects->FindObjectByFullName(skCrypt("Class /Script/FortniteGame.FortConsole")); //FortConsole real 2020??
 
 		Offsets::Default__FortKismetLibrary = GlobalObjects->FindObjectByFullName(skCrypt("FortKismetLibrary /Script/FortniteGame.Default__FortKismetLibrary"));
 		Offsets::Default__FortItemAndVariantSwapHelpers = GlobalObjects->FindObjectByFullName(skCrypt("FortItemAndVariantSwapHelpers /Script/FortniteGame.Default__FortItemAndVariantSwapHelpers"));
@@ -748,8 +764,8 @@ namespace Core
 		//RiftAutomationUtils::EquipWeapon(Pawn, skCrypt("FortWeaponMeleeItemDefinition /Mantis/Items/UncleBrolly/WID_UncleBrolly_VR.WID_UncleBrolly_VR"));
 		DEBUG_LOG("EquipWeapon\n");
 
-		RiftEventUtils::WatchNewYears();
-		DEBUG_LOG("NewYears\n");
+		RiftAutomationUtils::UnlockConsole(Controller);
+		DEBUG_LOG("UnlockConsole\n");
 
 		ExecutePatches();
 		bIsInGame = true;  //Figure out a way to do this as loading screen drops.
