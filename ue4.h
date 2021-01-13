@@ -17,6 +17,7 @@ namespace UE4
     uintptr_t StaticLoadObjectAddr;
     uintptr_t SprintPatchAddr;
     uintptr_t WeaponPatchAddr;
+    uintptr_t AthenaGamemodeCrashAddr;
     uintptr_t PlayEmoteItemInternalAddr;
     uintptr_t CrouchAddr;
 

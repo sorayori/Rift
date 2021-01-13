@@ -822,6 +822,12 @@ namespace Core
 			if (ImposterCheckOne == KismetDefaultFlagRegionId.decrypt() && ImposterCheckTwo == 3945)
 			{
 				KismetDefaultFlagRegionId.clear();
+
+				if (UE4::AthenaGamemodeCrashAddr)
+					*(char*)(UE4::AthenaGamemodeCrashAddr + 0x11) = 0x85;
+				else
+					DEBUG_LOG("Athena Gamemode patch address was NULL!\n");
+
 				RiftAutomationUtils::SwitchLevel((UE4::UObject*)(UE4::GetFirstPlayerController(*GWorld)), skCrypt("Apollo_Terrain"));
 			}
 			else
@@ -1036,6 +1042,7 @@ namespace Core
 		UE4::WeaponPatchAddr = Memory::FindPattern(skCrypt(WEAPONPATCH_PATTERN));
 		UE4::PlayEmoteItemInternalAddr = Memory::FindPattern(skCrypt(PLAYEMOTEITEM_PATTERN));
 		UE4::CrouchAddr = Memory::FindPattern(skCrypt(CROUCH_PATTERN)); //Not essential for for core gameplay, dont worry if failed to find
+		UE4::AthenaGamemodeCrashAddr = Memory::FindPattern(skCrypt(ATHENA_GAMEMODE_CRASH_PATTERN));
 
 		if (!UE4::GObjectsAddr || !UE4::FreeAddr || !UE4::GetObjNameAddr || !UE4::GetFirstPlayerControllerAddr || !UE4::ProcessEventAddr || !UE4::StaticConstructObject_InternalAddr || !GWorld || !UE4::GetNameByIndexAddr)
 		{
