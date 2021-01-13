@@ -44,8 +44,7 @@ namespace Core
 		DWORD CharacterBodyTypeOffset;
 		DWORD MaxNumItemsInCreativeChestsOffset;
 		DWORD DefaultFlagRegionIdOffset;
-		DWORD ControllerPlayerOffset;
-		DWORD LocalPlayerViewportClientOffset;
+		DWORD EngineGameViewportOffset;
 		DWORD ViewportConsoleOffset;
 
 		UE4::UObject* CheatManagerClass;
@@ -522,12 +521,12 @@ namespace Core
 			UE4::ProcessEvent(InCharacter, Offsets::UnCrouchFunc, &ClientSimulation, 0);
 		}
 		
-		static void UnlockConsole(UE4::UObject* InPlayerController)
+		static void UnlockConsole()
 		{
-			UE4::UObject* LocalPlayer = *reinterpret_cast<UE4::UObject**>(__int64(InPlayerController) + __int64(Offsets::ControllerPlayerOffset));
-			UE4::UObject* GameViewport = *reinterpret_cast<UE4::UObject**>(__int64(LocalPlayer) + __int64(Offsets::LocalPlayerViewportClientOffset));
+			UE4::UObject* FortEngine = GlobalObjects->FindObjectByFullName(skCrypt("FortEngine /Engine/Transient.FortEngine"));
+			UE4::UObject* GameViewport = *reinterpret_cast<UE4::UObject**>(__int64(FortEngine) + __int64(Offsets::EngineGameViewportOffset));
 			UE4::UObject** Console = reinterpret_cast<UE4::UObject**>(__int64(GameViewport) + __int64(Offsets::ViewportConsoleOffset));
-			UE4::UObject* NewConsole = UE4::StaticConstructObject_Internal(Offsets::ConsoleClass, InPlayerController, 0, 0, 0, 0, 0, 0, 0);
+			UE4::UObject* NewConsole = UE4::StaticConstructObject_Internal(Offsets::ConsoleClass, GameViewport, 0, 0, 0, 0, 0, 0, 0);
 			*Console = NewConsole;
 		}
 	};
@@ -616,8 +615,7 @@ namespace Core
 		Offsets::CharacterBodyTypeOffset = GlobalObjects->FindOffset(skCrypt("FortPlayerState"), skCrypt("CharacterBodyType"));
 		Offsets::MaxNumItemsInCreativeChestsOffset = GlobalObjects->FindOffset(skCrypt("FortRuntimeOptions"), skCrypt("MaxNumItemsInCreativeChests"));
 		Offsets::DefaultFlagRegionIdOffset = GlobalObjects->FindOffset(skCrypt("FortRuntimeOptions"), skCrypt("DefaultFlagRegionId"));
-		Offsets::ControllerPlayerOffset = GlobalObjects->FindOffset(skCrypt("PlayerController"), skCrypt("Player"));
-		Offsets::LocalPlayerViewportClientOffset = GlobalObjects->FindOffset(skCrypt("LocalPlayer"), skCrypt("ViewportClient"));
+		Offsets::EngineGameViewportOffset = GlobalObjects->FindOffset(skCrypt("Engine"), skCrypt("GameViewport"));
 		Offsets::ViewportConsoleOffset = GlobalObjects->FindOffset(skCrypt("GameViewportClient"), skCrypt("ViewportConsole"));
 
 		Offsets::CheatManagerClass = GlobalObjects->FindObjectByFullName(skCrypt("Class /Script/Engine.CheatManager"));
@@ -763,9 +761,6 @@ namespace Core
 
 		//RiftAutomationUtils::EquipWeapon(Pawn, skCrypt("FortWeaponMeleeItemDefinition /Mantis/Items/UncleBrolly/WID_UncleBrolly_VR.WID_UncleBrolly_VR"));
 		DEBUG_LOG("EquipWeapon\n");
-
-		RiftAutomationUtils::UnlockConsole(Controller);
-		DEBUG_LOG("UnlockConsole\n");
 
 		ExecutePatches();
 		bIsInGame = true;  //Figure out a way to do this as loading screen drops.
@@ -962,6 +957,8 @@ namespace Core
 		DEBUG_LOG("Rift PostInit has begun!\n");
 
 		GetOffsets();
+
+		RiftAutomationUtils::UnlockConsole();
 
 		ProcessEvent = (fProcessEvent)(UE4::ProcessEventAddr);
 		PlayEmoteItemInternal = (fPlayEmoteItemInternal)(UE4::PlayEmoteItemInternalAddr);
